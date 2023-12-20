@@ -14,9 +14,11 @@ void loop() {
   {
     return;
   }
-  int data = mySwitch.getReceivedValue();
+  unsigned long data = mySwitch.getReceivedValue();
 
-  Serial.println(data);
+  Serial.print(data >> 32); // Get top 4 Bytes
+  Serial.print(": ");
+  Serial.println(data & 0xFFFFFFFF); // Get bottom 4 Bytes
 
   mySwitch.resetAvailable();
 }

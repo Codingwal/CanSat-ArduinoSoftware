@@ -12,8 +12,10 @@ void setup() {
   Serial.begin(9600);
 }
 void loop() {
-  mySwitch.send(0, 4);
-  mySwitch.send(1, 4);
+  float temp = 10;
+  float pres = 20;
+  mySwitch.send((1 << 32) + temp, 8);
+  mySwitch.send((2 << 32) + pres, 8);
 
   delay(1000);
 }

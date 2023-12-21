@@ -1,2 +1,2 @@
-# 🤖 Arduino 🤖 & 🍓 Raspberry Pi 🍓
+# 🤖 Arduino 🤖
 Let's code!

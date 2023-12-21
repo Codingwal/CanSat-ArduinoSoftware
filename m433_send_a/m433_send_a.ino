@@ -12,10 +12,10 @@ void setup() {
   Serial.begin(9600);
 }
 void loop() {
-  float temp = 10;
-  float pres = 20;
-  mySwitch.send((1 << 32) + temp, 8);
-  mySwitch.send((2 << 32) + pres, 8);
+  float temp = bmp.readTemperature() * 100;
+  float pres = bmp.readPressure() * 100;
+  mySwitch.send((1UL << 24) + temp, 32);
+  mySwitch.send((2UL << 24) + pres, 32);
 
   delay(1000);
 }

@@ -14,11 +14,14 @@ void loop() {
   {
     return;
   }
-  unsigned long data = mySwitch.getReceivedValue();
+  unsigned long msg = mySwitch.getReceivedValue();
 
-  Serial.print(data >> 32); // Get top 4 Bytes
+  uint8_t header = (uint8_t)(msg >> 24); // Get top Byte
+  float data = (msg & 0xFFFFFF) / 100; // Get bottom 3 Bytes
+
+  Serial.print(to_string(header));
   Serial.print(": ");
-  Serial.println(data & 0xFFFFFFFF); // Get bottom 4 Bytes
+  Serial.print(to_string(data));
 
   mySwitch.resetAvailable();
 }

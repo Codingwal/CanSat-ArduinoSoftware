@@ -14,6 +14,11 @@ void setup() {
 void loop() {
   float temp = bmp.readTemperature() * 100;
   float pres = bmp.readPressure() * 100;
+
+  Serial.print("Pressure: ");
+  Serial.print(pres);
+  Serial.println("Pa");
+
   mySwitch.send((1UL << 24) + temp, 32);
   mySwitch.send((2UL << 24) + pres, 32);
 

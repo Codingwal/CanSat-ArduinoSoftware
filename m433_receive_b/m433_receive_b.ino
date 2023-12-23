@@ -22,13 +22,13 @@ void loop() {
   float data = (msg & 0xFFFFFF); // Get bottom 3 Bytes
 
   if (header == 1) {
-    Serial.print("Temperature: ");
+    Serial.print("Temperatur: ");
     Serial.print(data / 100);
     Serial.println("°C");
   }
 
   if (header == 2) {
-    Serial.print("Pressure: ");
+    Serial.print("Druck: ");
     Serial.print(data / 100);
     Serial.println("Pa");
   }

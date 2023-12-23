@@ -19,8 +19,8 @@ void loop() {
   Serial.print(pres);
   Serial.println("Pa");
 
-  mySwitch.send((1UL << 24) + temp, 32);
-  mySwitch.send((2UL << 24) + pres, 32);
+  mySwitch.send((1UL << 24) + temp, 32);  // Temperatur senden, fängt mit 1 an
+  mySwitch.send((2UL << 24) + pres, 32);  // Druck senden, fängt mit 2 an
 
   delay(1000);
 }

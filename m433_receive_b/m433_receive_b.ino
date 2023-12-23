@@ -23,7 +23,7 @@ void loop() {
 
   if (header == 1) {
     Serial.print("Temperature: ");
-    Serial.print(data / 100);
+    Serial.print(data / 10);
     Serial.println("°C");
   }
 

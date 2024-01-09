@@ -10,28 +10,18 @@ void setup() {
 }
 
 void loop() {
-  if (!mySwitch.available())
-  {
+  if (!mySwitch.available()) {
     return;
   }
-  //unsigned long data = mySwitch.getReceivedValue();
+  const unsigned int *msg = mySwitch.getReceivedRawdata();
 
-  unsigned long msg = mySwitch.getReceivedValue();
-
-  uint8_t header = (uint8_t)(msg >> 24); // Get top Byte
-  float data = (msg & 0xFFFFFF); // Get bottom 3 Bytes
-
-  if (header == 1) {
-    Serial.print("Temperatur: ");
-    Serial.print(data / 100);
-    Serial.println("°C");
-  }
-
-  if (header == 2) {
-    Serial.print("Druck: ");
-    Serial.print(data / 100);
-    Serial.println("Pa");
-  }
+  print((char *)msg, mySwitch.getReceivedBitlength());
 
   mySwitch.resetAvailable();
+}
+
+void print(const char *msg, unsigned int size) {
+  for (int i = 0; i < size; i += 8) {
+    Serial.print(msg[i]);
+  }
 }

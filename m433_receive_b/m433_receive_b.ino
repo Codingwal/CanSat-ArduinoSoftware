@@ -26,7 +26,6 @@ bool receiveData() {
   // Status der Library ob Daten angekommen sind zurücksetzen
   mySwitch.resetAvailable();
 
-
   // Bei invalidem Signal abbrechen
   if (msg == 0) {
     return false;
@@ -46,14 +45,22 @@ bool receiveData() {
   return true;
 }
 
+float temp = -1;
+
 void loop() {
   // Wenn nicht erfolgreich Daten empfangen wurden abbrechen
   if (!receiveData()) {
     return;
   }
 
-  // Temporär, empfagenes in die Konsole schreiben
-  Serial.println(head);
-  Serial.println(data);
-  Serial.println();
+  // Unterer Teil der Temperatur wurde gesendet
+  if (head == 1) {
+    temp = (float)(0xFFFF & data);
+  }
+
+  // Oberer Teil der Temperatur wurde gesendet
+  if (head == 2) {
+    temp = (int)temp | (data << 16);
+    Serial.println(data);
+  }
 }

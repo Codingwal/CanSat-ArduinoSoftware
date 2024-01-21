@@ -2,7 +2,6 @@
 RCSwitch mySwitch = RCSwitch();
 
 unsigned long data;
-unsigned long prevData;
 unsigned char head;
 unsigned char prevHead = -1;
 
@@ -16,32 +15,45 @@ void setup() {
 }
 
 bool receiveData() {
+  // Auf verfügbares Signal prüfen
   if (!mySwitch.available()) {
     return false;
   }
 
+  // Empfangene Daten lesen
   const unsigned long msg = mySwitch.getReceivedValue();
+
+  // Status der Library ob Daten angekommen sind zurücksetzen
+  mySwitch.resetAvailable();
+
+
+  // Bei invalidem Signal abbrechen
+  if (msg == 0) {
+    return false;
+  }
+
+  // Datenblock und Kopfzeile trennen und aktualisieren
   data = msg & 0xFFFFFF;
   head = msg >> 24;
 
+  // Jede Information nur einmal lesen bis etwas anderes gesendet wurde
   if (head == prevHead) {
     return false;
   }
   prevHead = head;
-  prevData = data;
 
+  // Erfolgreich Daten empfangen
   return true;
-}      
+}
 
 void loop() {
+  // Wenn nicht erfolgreich Daten empfangen wurden abbrechen
   if (!receiveData()) {
     return;
   }
-   
-  // Serial.println(head);
+
+  // Temporär, empfagenes in die Konsole schreiben
   Serial.println(head);
   Serial.println(data);
   Serial.println();
-
-  mySwitch.resetAvailable();
 }

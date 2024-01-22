@@ -46,21 +46,23 @@ bool receiveData() {
 }
 
 float temp = -1;
+float pres = -1;
 
 void loop() {
-  // Wenn nicht erfolgreich Daten empfangen wurden abbrechen
+  // Wenn nicht erfolgreich Daten empfangen wurden, abbrechen
   if (!receiveData()) {
     return;
   }
 
-  // Unterer Teil der Temperatur wurde gesendet
+  // Temperatur wurde gesendet
   if (head == 1) {
-    temp = (float)(0xFFFF & data);
+    temp = (float)data / 100;
+    Serial.println("Temperature: " + String(temp));
   }
 
-  // Oberer Teil der Temperatur wurde gesendet
+  // Druck wurde gesendet
   if (head == 2) {
-    temp = (int)temp | (data << 16);
-    Serial.println(data);
+    pres = (float)data * 100;
+    Serial.println("Pressure: " + String(pres));
   }
 }

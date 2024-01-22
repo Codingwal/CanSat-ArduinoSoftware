@@ -12,7 +12,7 @@ using namespace std;
 void setup() {
   mySwitch.enableTransmit(10);  // Der Sender wird an Pin 10 angeschlossen
 
-  bmp.begin(2);
+  bmp.begin(BMP280_I2C_ADDRESS);
 
   Serial.begin(9600);
 }
@@ -20,14 +20,10 @@ void loop() {
   float temp = getTemp();
   float pres = getPres();
 
-  temp = 40.5f;
-
-  Serial.println(temp);
-
   // Ersten Datenblock (Beispiel) übertragen und 1s warten
-  sendData(1, 0xFFFF & (int)temp);
-  delay(1000);
-  sendData(2, (int)temp >> 16);
+  // Maximal zwei Nachkommastellen (x100), bei 3 (x1000) wird z.B. 40.5 zu 32.77
+  sendData(1, (int)(temp * 100));
+  sendData(2, (int)(pres / 100));
   delay(1000);
 }
 
@@ -38,9 +34,11 @@ void sendData(unsigned char head, unsigned long data) {
 
 float getTemp() {
   float temp = bmp.readTemperature();
+  Serial.println("Temperature: " + String(temp));
   return temp;
 }
 float getPres() {
   float pres = bmp.readPressure();
+  Serial.println("Pressure: " + String(pres));
   return pres;
 }

@@ -1,2 +1,0 @@
-# 🤖 Arduino 🤖
-Let's code!

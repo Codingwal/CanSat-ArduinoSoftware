@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "CanSat",
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"new": "cpp"
+		}
+	}
+}

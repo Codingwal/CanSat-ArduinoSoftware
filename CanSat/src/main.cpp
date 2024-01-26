@@ -14,6 +14,7 @@ using namespace std;
 // so großes erstellt, Startgröße ist in dem Fall 5 (5->10->20->40->...)
 // Source Code ist unter ../CanSat/lib/vector/myVector.h
 Vector<float> tempVec = Vector<float>(5);
+Vector<float> presVec = Vector<float>(5);
 
 void sendData(unsigned char head, unsigned long data)
 {
@@ -45,20 +46,28 @@ void loop()
   float temp = getTemp();
   float pres = getPres();
 
-  // DEBUG: Temperatur wird nachdem sie gelesen wurde ausgegeben
-  Serial.println(String(temp));
-
   tempVec.pushBack(temp);
+  presVec.pushBack(pres);
 
   // DEBUG: Jede 10 Iterationen werden alle gespeicherten Temperaturen ausgegeben
   if (tempVec.size() % 10 == 0)
   {
-    Serial.println("--------------------");
+    Serial.println("---Temperature------------");
     for (size_t i = 0; i < tempVec.size(); i++)
     {
       Serial.println(tempVec[i]);
     }
-    Serial.println("--------------------");
+  }
+
+  // DEBUG: Jede 10 Iterationen werden alle gespeicherten Druckmesswerte ausgegeben
+  if (presVec.size() % 10 == 0)
+  {
+    Serial.println("---Pressure---------------");
+    for (size_t i = 0; i < presVec.size(); i++)
+    {
+      Serial.println(presVec[i]);
+    }
+    Serial.println("--------------------------");
   }
 
   // Ersten Datenblock (Beispiel) übertragen und 1s warten

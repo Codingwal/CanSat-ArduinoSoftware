@@ -1,0 +1,77 @@
+### Wiring & Adressing
+| Devise               | I²C-Adress | TX-Pin | RX-Pin | Voltage |
++----------------------+------------+--------+--------+---------+
+| BMP280               |    0x76    |  none  |  none  |    5    |
+| BNO-055              |    0x28    |  none  |  none  |    5    |
+| NEO-6M GPS           |    none    |   12   |   11   |    5    |
+
+
+### Devises
+
+## BMP280
+Temperature and pressure sensor.
+
+----------------
+
+bmp.begin(0x76);
+
+bmp.readTemperature(); // °C
+bmp.readreadPressure(); // Pa
+bmp.readAltitude(sealevelhpa); //m, On www.wetter.de at "Luftfeuchte", Example: 76% bei [1.019] hPa
+
+----------------
+
+
+
+## BNO-055
+Acceleration & Rotation & Much more sensor.
+
+----------------
+
+Take a look at bno_read_all_data.txt, pay attention to BAUD, it's need to be 115200!
+
+----------------
+
+
+
+## NEO-6M GPS
+GPS
+
+<TinyGPS.h>
+
+https://github.com/neosarchizo/TinyGPS/blob/master/keywords.txt
+
+----------------
+
+// irgendwo oben
+float lat = 0;
+float lon = 0;
+
+// loop
+while(gpsSerial.available()){ // check for gps data 
+  if(gps.encode(gpsSerial.read()))// encode gps data 
+  {  
+  gps.f_get_position(&lat,&lon); // get latitude and longitude 
+  // display position
+  
+  Serial.print("Position: "); 
+  Serial.print("Latitude:"); 
+  Serial.print(lat,6); 
+  Serial.print(";"); 
+  Serial.print("Longitude:"); 
+  Serial.println(lon,6);  
+ 
+  //Serial.print(lat); 
+  //Serial.print(" ");  
+
+  //myadded bit
+  digitalWrite(13,HIGH);
+  digitalWrite(12,LOW);
+ }
+}
+String latitude = String(lat,6); 
+String longitude = String(lon,6); 
+Serial.println(latitude+";"+longitude); 
+delay(1000); 
+
+----------------

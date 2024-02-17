@@ -12,19 +12,23 @@ RCSwitch mySwitch = RCSwitch();
 
 File myFile;
 
+// Die bits der float werden mit RCSwitch gesendet
 void sendFloat(float value)
 {
+  // Ändert den Typ von float zu long ohne bits zu ändern
   unsigned long data;
   memcpy(&data, &value, 4);
 
   mySwitch.send(data, 32);
 }
+// Sendet einen Vector3 (in dataSystem.h definiert) mithilfe der sendFloat Funktion
 void sendVector3(Vector3 vector)
 {
   sendFloat(vector.x);
   sendFloat(vector.y);
   sendFloat(vector.z);
 }
+// Sendet alle Daten als einen Datenblock mit den obigen Sendefunktionen
 void sendDataBlock(DataBlock data)
 {
   mySwitch.send(DATA_BLOCK_START, 32);
@@ -34,6 +38,7 @@ void sendDataBlock(DataBlock data)
   sendVector3(data.position);
   mySwitch.send(DATA_BLOCK_END, 32);
 }
+// Schreibt einen Vector3 (in dataSystem.h definiert) an den angeschlossenen Computer (zum debuggen)
 void writeVector3(Vector3 vector)
 {
   // myFile.print(String(vector.x) + ", " + String(vector.y) + ", " + String(vector.z));
@@ -42,6 +47,7 @@ void writeVector3(Vector3 vector)
   Serial.println(vector.y);
   Serial.println(vector.z);
 }
+// Schreibt alle Daten als einen Datenblock an den angeschlossenen Computer (zum debuggen)
 void writeDataBlock(DataBlock data)
 {
   // myFile.print(String(data.temperature) + ", " + String(data.pressure) + ", ");
@@ -57,6 +63,7 @@ void writeDataBlock(DataBlock data)
   Serial.println("---------------------");
 }
 
+// Liest die Sensordaten mithilfe der Adafruit_BMP Bibiothek
 float getTemperature()
 {
   return bmp.readTemperature();
@@ -76,11 +83,17 @@ void setup()
 }
 void loop()
 {
+  // Daten werden gelesen und gespeichert
   DataBlock data = DataBlock();
   data.temperature = getTemperature();
   data.pressure = getPressure();
 
+  // Daten werden an die Bodenstation gesendet
   sendDataBlock(data);
+
+  // Daten werden an den Computer gesendet
   writeDataBlock(data);
+
+  // Kurze Pause
   delay(100);
 }

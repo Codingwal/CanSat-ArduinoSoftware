@@ -33,19 +33,23 @@ bool receiveData()
   // Erfolgreich Daten empfangen
   return true;
 }
+
+// Konvertiert die gesendete long zurück zu float, ohne bits zu modifizieren
 float longToFloat(unsigned long data)
 {
   float value;
   memcpy(&value, &data, 4);
   return value;
 }
+
+// Schreibt einen Vector3 (in dataSystem.h definiert) an den angeschlossenen Computer (zum debuggen)
 void writeVector3(Vector3 vector)
 {
   Serial.println(vector.x);
   Serial.println(vector.y);
   Serial.println(vector.z);
 }
-
+// Schreibt alle Daten als einen Datenblock an den angeschlossenen Computer (zum debuggen)
 void writeDataBlock(DataBlock data)
 {
   Serial.println(data.temperature);
@@ -55,6 +59,7 @@ void writeDataBlock(DataBlock data)
   Serial.println("---------------------");
 }
 
+// Liest die empfangenen Daten aus und schreibt sie an den angeschlossenen Computer, falls ein Block fertig ist
 void getDataBlock()
 {
   if (data == DATA_BLOCK_START)

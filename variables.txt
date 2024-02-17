@@ -1,0 +1,22 @@
+## BMP
+float temperature
+float pressure
+float altitude2
+
+## BNO
+float accelerationX
+float accelerationY
+float accelerationZ
+float rotationX
+float rotationY
+float rotationZ
+float temperature2
+
+## GPS
+float latitude
+float longtitude
+float altitude
+
+## Other
+bool fan
+bool landed

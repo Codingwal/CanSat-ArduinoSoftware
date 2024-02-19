@@ -1,13 +1,63 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Space Z | Bodenstation</title>
+
+    <style>
+        html {
+            width: 100%;
+            margin: 0;
+        }
+
+        body {
+            background: #000;
+            color: #fff;
+            font-family: monospace;
+
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            width: calc(100% - 20px);
+            margin: 10px;
+        }
+
+        svg {
+            color: #5271ff;
+        }
+
+        text {
+            fill: #fff;
+        }
+
+        div {
+            background: #1c1c1c;
+            padding: 10px;
+            border-radius: 5px;
+
+            font-size: 28px;
+
+            width: fit-content;
+        }
+
+        .big {
+            grid-column: 1 / span 3;
+        }
+
+        .small {
+            /* grid-column: 1 / 1; */
+            width: 1fr;
+        }
+    </style>
 </head>
+
 <body>
     <button onclick="start()">Verbinden!</button>
 </body>
+
 </html>
 
 <script src="bodenstation.js"></script>
+<script src="chartmaker.js"></script>

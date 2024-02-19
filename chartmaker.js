@@ -1,66 +1,35 @@
-<!DOCTYPE html>
-<html lang="de">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Z | SVG-Diagramme</title>
-
-    <style>
-        body {
-            color: #fff;
-            background: #111;
-            font-family: monospace;
-        }
-
-        svg {
-            color: #5271ff;
-        }
-    </style>
-</head>
-
-<body>
-
-</body>
-
-</html>
-
-<script>
-    let temperatures = generateGraph(280, 20, 0.52);
-    let pressures = generatePressures(280);
-
-    // const values = [22.4, 22.2, 19.8, 19.8, 19.7, 19.6, 19.5, 19.7, 20, 20.6, 21.4, 22.9, 25];
-    let i = 200;
-
-    setInterval(() => {
-        if (i < temperatures.length) {
-            document.body.innerHTML = '<h1>Temperatur: </h1>' + generateSVGChart(temperatures.slice(i - 200, i), 1200, 100, 5);
-            document.body.innerHTML += '<h1>Druck: </h1><br>' + generateSVGChart(pressures.slice(i - 200, i), 1200, 100, 5);
-            i++;
-        }
-    }, 250);
-
-    function generateSVGChart(values, width, height, weight) {
+function generateSVGChart(values, width, height, weight) {
         let minAndMax = getMinAndMax(values);
         let minValue = minAndMax[0];
         let maxValue = minAndMax[1];
         let range = maxValue - minValue; // muss mindestens eins sein, um Anzeigefehler zu vermeiden
 
-        console.log(minAndMax);
-        console.log(range);
+        if (range == 0) {
+            range = 0.01;
+        }
+
+        // console.log(minAndMax);
+        // console.log(range);
 
         let scaleX = (width - weight) / (values.length - 1);
         let scaleY = (height - weight) / range;
 
+        
         let toaddX = weight / 2;
         let toaddY = toaddX - minValue * scaleY;
 
+        console.log([values[2], scaleY, toaddY]);
+        console.log(values[2] * scaleY + toaddY);
+        
         let svg = `<path d="M${toaddX} ${height - (values[0] * scaleY + toaddY)}`;
         for (let i = 1; i < values.length; i++) {
             svg += `L${i * scaleX + toaddX} ${height - (values[i] * scaleY + toaddY)}`;
         }
 
-        svg += `" fill="none" stroke="currentColor" stroke-width="${weight}" stroke-linejoin="round" stroke-linecap="round">`;
+        svg += `" fill="none" stroke="currentColor" stroke-width="${weight}" stroke-linejoin="round" stroke-linecap="round"></path>`;
+
+        svg += `<text x="5" font-size="15" y="${height}">${minValue}</text>`;
+        svg += `<text x="5" font-size="15" y="15">${maxValue}</text>`;
 
         return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
     }
@@ -104,4 +73,3 @@
 
         return output;
     }
-</script>

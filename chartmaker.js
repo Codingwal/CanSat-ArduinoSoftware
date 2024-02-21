@@ -2,14 +2,11 @@ function generateSVGChart(values, width, height, weight) {
         let minAndMax = getMinAndMax(values);
         let minValue = minAndMax[0];
         let maxValue = minAndMax[1];
-        let range = maxValue - minValue; // muss mindestens eins sein, um Anzeigefehler zu vermeiden
+        let range = maxValue - minValue;
 
-        if (range == 0) {
-            range = 0.01;
+        if (range == 0) { // darf nicht 0 sein, um Anzeigefehler zu vermeiden
+            range = 0.00001;
         }
-
-        // console.log(minAndMax);
-        // console.log(range);
 
         let scaleX = (width - weight) / (values.length - 1);
         let scaleY = (height - weight) / range;
@@ -18,8 +15,8 @@ function generateSVGChart(values, width, height, weight) {
         let toaddX = weight / 2;
         let toaddY = toaddX - minValue * scaleY;
 
-        console.log([values[2], scaleY, toaddY]);
-        console.log(values[2] * scaleY + toaddY);
+        //console.log([values[2], scaleY, toaddY]);
+        //console.log(values[2] * scaleY + toaddY);
         
         let svg = `<path d="M${toaddX} ${height - (values[0] * scaleY + toaddY)}`;
         for (let i = 1; i < values.length; i++) {

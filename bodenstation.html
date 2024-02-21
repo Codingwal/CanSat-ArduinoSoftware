@@ -18,7 +18,7 @@
             font-family: monospace;
 
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
             gap: 10px;
             width: calc(100% - 20px);
             margin: 10px;
@@ -39,16 +39,19 @@
 
             font-size: 28px;
 
-            width: fit-content;
+            width: auto;
         }
 
         .big {
-            grid-column: 1 / span 3;
+            grid-column: 1 / span 6;
+        }
+
+        .medium {
+            width: 3fr;
         }
 
         .small {
-            /* grid-column: 1 / 1; */
-            width: 1fr;
+            width: 2fr;
         }
     </style>
 </head>
@@ -61,3 +64,4 @@
 
 <script src="bodenstation.js"></script>
 <script src="chartmaker.js"></script>
+<script src="lora.js"></script>

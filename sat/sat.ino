@@ -15,6 +15,7 @@
 #define LORA_RX_PIN 5
 #define LORA_TX_PIN 6
 #define LED_PIN 13
+#define SPEAKER_PIN 10
 
 #define FREQUENCY 434.0
 
@@ -81,6 +82,7 @@ void setup() {
     Serial.println("Please connect BNO055!");
     problem = true;
   }
+
   if (!rf95.init())
   {
     Serial.println("Please connect LoRa!");
@@ -124,7 +126,8 @@ void loop() {
 
   // BNO
   sensors_event_t accelerometer, gyroscope;
-  bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_ACCELEROMETER);
+  //bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_ACCELEROMETER);
+  bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL); // Acceleration - Gravity
   accelerationX = accelerometer.acceleration.x;
   accelerationY = accelerometer.acceleration.y;
   accelerationZ = accelerometer.acceleration.z;
@@ -162,9 +165,12 @@ void loop() {
   sendData();
 
   if (height > 0) { // Nur für Test-Zwecke
-   height = height - 2.5;
+    height = height - 2.5;
   }
-  delay(250);
+  
+  tone(SPEAKER_PIN, 1000);
+  delay(150);
+  noTone(SPEAKER_PIN);
 }
 
 void sendData() {
@@ -172,25 +178,25 @@ void sendData() {
   send(temperature);
   send(pressure);
   send(altitude2);
-  send(9999991);
+  //send(9999991);
   send(accelerationX);
   send(accelerationY);
   send(accelerationZ);
-  send(9999992);
+  //send(9999992);
   send(rotationX);
   send(rotationY);
   send(rotationZ);
-  send(9999993);
+  //send(9999993);
   send(latitude);
   send(longitude);
   send(altitude);
-  send(9999994);
+  //send(9999994);
   send(fan);
   send(working);
   send(landed);
-  send(9999995);
+  //send(9999995);
   send(sended);
-  send(9999996);
+  send(9999991);
 
   sended++;
 }

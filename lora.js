@@ -39,6 +39,7 @@ function setFrequency(freq) {
 }
 
 function recv(buf, len) {
+    console.log(buf);
     if (!available()) {
         return false;
     }
@@ -118,14 +119,15 @@ function setModeRx() {
 }
 
 function available() {
-    if (uartAvailable()) {
-        if (uartRead() == 'I') {
-            handleInterrupt();
-        }
-    }
+    // if (uartAvailable()) {
+    //     if (uartRead() == 'I') {
+    //         handleInterrupt();
+    //     }
+    // }
 
-    if (_mode == RHModeTx) return false;
-    setModeRx();
+    // if (_mode == RHModeTx) return false;
+    // setModeRx();
 
-    return _rxBufValid;
+    // return _rxBufValid;
+    return true
 }

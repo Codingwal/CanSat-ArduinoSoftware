@@ -1,208 +1,221 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
-#include <Wire.h>
 #include <Adafruit_BNO055.h>
 #include <SoftwareSerial.h>
 //#include <TinyGPS.h>
 //#include <TinyGPSPlus.h>
 #include <RH_RF95.h>
+#include <SD.h>
 
 #define BMP280_I2C_ADDRESS 0x76
 #define BNO055_I2C_ADDRESS 0x28
 #define FAN_PIN 4
-#define GPS_RX_PIN 11
-#define GPS_TX_PIN 12
+#define GPS_RX_PIN 00
+#define GPS_TX_PIN 00
 #define LORA_RX_PIN 5
 #define LORA_TX_PIN 6
-#define LED_PIN 13
-#define SPEAKER_PIN 10
+#define LED_PIN 2
+#define SPEAKER_PIN 8
+#define SD_CS_PIN 10
 
-#define FREQUENCY 434.0
+/*
+  SPI Pins Arduino Nano
+  CS 10
+  MOSI 11
+  MISO 12
+  SCK 13
+  https://www.arduino.cc/reference/en/language/functions/communication/spi/
+  https://funduino.de/nr-28-das-sd-karten-modul
+*/
+
+#define FREQUENCY 433.0
+
+#define STARTALTITUDE 30 // Höhe vor dem Start vom Flugplatz
+
+#define FILEPATH "data.txt"
 
 Adafruit_BMP280 bmp;
-Adafruit_BNO055 bno = Adafruit_BNO055(55, BNO055_I2C_ADDRESS, &Wire);
+Adafruit_BNO055 bno;
 //SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
 //SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
 //TinyGPSPlus gps;
 SoftwareSerial rf(LORA_RX_PIN, LORA_TX_PIN);
 RH_RF95 rf95(rf);
 
-float startaltitude; // Höhe vor dem Start vom GPS
-float startpressure; // Luftdruck vor dem Start
-float startaltitude2; // Höhe vor dem Start vom BMP
-float startX; // GPS-Position vor dem Start, bzw. wenn es nicht mehr die indischen Koordinaten sind
-float startY; // GPS-Position vor dem Start, bzw. wenn es nicht mehr die indischen Koordinaten sind
-float startZ; // GPS-Position vor dem Start, bzw. wenn es nicht mehr die indischen Koordinaten sind
-
-float temperature;
 float pressure;
-float altitude2;
+float sealevelhpa;
 
-float accelerationX;
-float accelerationY;
-float accelerationZ;
-float rotationX;
-float rotationY;
-float rotationZ;
-float temperature2;
+bool fan = false;
+bool ejected = false;
+bool landed = false;
 
-float latitude;
-float longitude;
-float altitude;
+int messages = 0;
 
-bool fan = 0;
-bool working = false;
-bool landed = 0;
-
-int sended = 0;
-
-bool problem = false;
+File file;
 
 void setup() {
   Serial.begin(9600);
+  Serial.println(100);
 
-  Serial.println("Starting...");
+  bool problem = false;
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
 
-  pinMode(GPS_RX_PIN, OUTPUT); // GPS-Pin auf Output setzen
-  pinMode(GPS_TX_PIN, OUTPUT); // GPS-Pin auf Output setzen
-  digitalWrite(GPS_RX_PIN, LOW); // Spannung auf GPS-Pin ausschalten
-  digitalWrite(GPS_TX_PIN, LOW); // Spannung auf GPS-Pin ausschalten
+  /*pinMode(GPS_RX_PIN, OUTPUT); // GPS-Pin auf Output setzen
+    pinMode(GPS_TX_PIN, OUTPUT); // GPS-Pin auf Output setzen
+    digitalWrite(GPS_RX_PIN, LOW); // Spannung auf GPS-Pin ausschalten
+    digitalWrite(GPS_TX_PIN, LOW); // Spannung auf GPS-Pin ausschalten*/
 
   pinMode(FAN_PIN, OUTPUT);
   digitalWrite(FAN_PIN, LOW);
 
   if (!bmp.begin(BMP280_I2C_ADDRESS)) {
-    Serial.println("Please connect BMP280!");
+    Serial.println(501);
     problem = true;
   }
   if (!bno.begin()) {
-    Serial.println("Please connect BNO055!");
+    Serial.println(502);
     problem = true;
   }
-
   if (!rf95.init())
   {
-    Serial.println("Please connect LoRa!");
+    Serial.println(503);
+    problem = true;
+  }
+  if (!SD.begin(SD_CS_PIN)) {
+    Serial.println(504);
     problem = true;
   }
 
-  //gpsSerial.begin(9600);
-  //ss.begin(9600);
+  file = SD.open(FILEPATH, FILE_WRITE);
+  if (file) {
+    file.println(""); // Es muss irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
+  } else {
+    Serial.println(505);
+    problem = true;
+  }
+
+  /*gpsSerial.begin(9600);
+    ss.begin(9600);*/
 
   rf95.setFrequency(FREQUENCY);
-
-  if (bmp.takeForcedMeasurement()) {
-    startpressure = bmp.readPressure(); // Luftdruck beim einschalten (Luftdruck)
-    startaltitude2 = bmp.readAltitude(); // Höhe beim einschalten (Luftdruck)
-  }
+  sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, bmp.readPressure());
 
   if (problem) {
     while (true) {
       digitalWrite(LED_PIN, LOW);
+      tone(SPEAKER_PIN, 1000);
       delay(500);
       digitalWrite(LED_PIN, HIGH);
+      noTone(SPEAKER_PIN);
       delay(500);
     }
   } else {
-    Serial.println("Successfully started!");
+    Serial.println(200);
+    tone(SPEAKER_PIN, 200);
+    delay(100);
+    tone(SPEAKER_PIN, 400);
+    delay(100);
+    tone(SPEAKER_PIN, 600);
+    delay(100);
+    noTone(SPEAKER_PIN);
     digitalWrite(LED_PIN, LOW);
-    working = true;
   }
 }
 
 float height = 700; // Dient als Test, wird durchgehend runtergesetzt
 void loop() {
-  Serial.println("looooooop"); // Zum Debuggen
-
-  // BMP
-  //if (bmp.takeForcedMeasurement()) {
-  temperature = bmp.readTemperature();
-  pressure = bmp.readPressure();
-  altitude2 = bmp.readAltitude();
-  //}
-
-  // BNO
-  sensors_event_t accelerometer, gyroscope;
-  //bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_ACCELEROMETER);
-  bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL); // Acceleration - Gravity
-  accelerationX = accelerometer.acceleration.x;
-  accelerationY = accelerometer.acceleration.y;
-  accelerationZ = accelerometer.acceleration.z;
-
-  bno.getEvent(&gyroscope, Adafruit_BNO055::VECTOR_EULER);
-  rotationX = gyroscope.gyro.x;
-  rotationY = gyroscope.gyro.y;
-  rotationZ = gyroscope.gyro.z;
-
-  // GPS
-  //while (gpsSerial.available()) {
-  // if (gps.encode(gpsSerial.read())) {
-  //  gps.f_get_position(&latitude, &longitude);
-  //  altitude = gps.f_altitude();
-  // }
-  //}
-
-  //while (ss.available() > 0) {
-  //gps.encode(ss.read());
-  //if (gps.location.isUpdated()) {
-  //latitude = gps.location.lat(), 3;
-  //longitude = gps.location.lng(), 3;
-  //}
-  //}
-
-  float bmpHeight = startaltitude2 - altitude2; // Höhe mit Luftdruck in Metern, relativ zur Höhe beim Start
-  float imuHeight;
-  float gpsHeight;
+  /*if (Serial.readString() == "getdata") {
+    transmitData();
+    }*/
 
   if (height < 500) { // Beispielwert
     digitalWrite(FAN_PIN, HIGH); // Lüfter einschalten
     fan = 1;
   }
 
-  sendData();
-
   if (height > 0) { // Nur für Test-Zwecke
-    height = height - 2.5;
+    height = height - 200;
+  } else {
+    //file.close();
   }
-  
-  tone(SPEAKER_PIN, 1000);
-  delay(150);
-  noTone(SPEAKER_PIN);
+
+  if (ejected) {
+    if (messages % 2 == 0) {
+      tone(SPEAKER_PIN, 1000);
+    } else {
+      noTone(SPEAKER_PIN);
+    }
+  }
+
+  send(9999990);
+  send(messages);
+  BMP();
+  BNO();
+  GPS();
+  send(fan);
+  send(landed);
+  send(9999991);
+  messages++;
 }
 
-void sendData() {
-  send(9999990);
-  send(temperature);
+void BMP() {
+  pressure = bmp.readPressure();
+
+  send(bmp.readTemperature()); // Temperatur senden
   send(pressure);
-  send(altitude2);
-  //send(9999991);
-  send(accelerationX);
-  send(accelerationY);
-  send(accelerationZ);
-  //send(9999992);
-  send(rotationX);
-  send(rotationY);
-  send(rotationZ);
-  //send(9999993);
+}
+
+void BNO() {
+  sensors_event_t accelerometer, gyroscope;
+  bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL); // Acceleration - Gravity
+  send(accelerometer.acceleration.x);
+  send(accelerometer.acceleration.y);
+  send(accelerometer.acceleration.z);
+
+  bno.getEvent(&gyroscope, Adafruit_BNO055::VECTOR_EULER);
+  send(gyroscope.gyro.x);
+  send(gyroscope.gyro.y);
+  send(gyroscope.gyro.z);
+}
+
+void GPS() {
+  float latitude;
+  float longitude;
+  float altitude;
+
+  /*while (gpsSerial.available()) {
+    if (gps.encode(gpsSerial.read())) {
+      gps.f_get_position(&latitude, &longitude);
+      altitude = gps.f_altitude();
+    }
+    }*/
+
+  /*while (ss.available() > 0) {
+    gps.encode(ss.read());
+    if (gps.location.isUpdated()) {
+      latitude = gps.location.lat(), 3;
+      longitude = gps.location.lng(), 3;
+    }
+    }*/
+
   send(latitude);
   send(longitude);
   send(altitude);
-  //send(9999994);
-  send(fan);
-  send(working);
-  send(landed);
-  //send(9999995);
-  send(sended);
-  send(9999991);
-
-  sended++;
 }
 
-void send(double val) {
-  uint8_t data[sizeof(double)];
-  memcpy(&data, &val, sizeof(double));
-  rf95.send(data, sizeof(double));
+void send(float val) {
+  uint8_t tosend[sizeof(float)];
+  memcpy(&tosend, &val, sizeof(float));
+  rf95.send(tosend, sizeof(float));
+
+  file.println(val, DEC);
+  file.flush();
+}
+
+void transmitData() {
+  while (file.available()) {
+    Serial.write(file.read());
+  }
 }

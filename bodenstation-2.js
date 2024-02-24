@@ -8,7 +8,7 @@ async function start() {
     while (port.readable) {
         const reader = port.readable.getReader();
         writer = port.writable.getWriter();
-        console.log(setFrequency(new Uint8Array(433.9)));
+        console.log(setFrequency(new Uint8Array(434.0)));
         try {
             while (true) {
                 const { value, done } = await reader.read();
@@ -17,14 +17,15 @@ async function start() {
                     break;
                 }
 
-                if (available()) {
+                // if (available()) {
+                    console.log(RH_RF95_MAX_MESSAGE_LEN);
                     let buf = RH_RF95_MAX_MESSAGE_LEN;
                     let len = sizeof(buf);
                     if (recv(buf, len)) {
                         let data = buf;
                         console.log(data);
                     }
-                }
+                // }
             }
         } catch (error) {
             console.error('Es ist ein Fehler aufgetreten: ' + error);

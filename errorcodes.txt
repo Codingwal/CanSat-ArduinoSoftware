@@ -1,0 +1,8 @@
+100: Starting
+200: Success
+300: Loop
+501: Error with BMP280
+502: Error with BNO055
+503: Error with LoRa-Module
+504: Error with SD-Module
+505: Error with opening/creating file

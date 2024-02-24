@@ -6,7 +6,6 @@ let smallwidth = (document.body.offsetWidth - 10) / 3 - 30;
 let data = {
     temperature: [],
     pressure: [],
-    altitude2: [],
     accelerationX: [],
     accelerationY: [],
     accelerationZ: [],
@@ -19,7 +18,7 @@ let data = {
     fan: [],
     ready: [],
     landed: [],
-    sended: [],
+    messages: [],
     time: [] // Zeit bis zum Datenblock
 }
 
@@ -43,7 +42,7 @@ async function start() {
     const port = await navigator.serial.requestPort();
     await port.open({ baudRate: 9600 });
 
-    document.body.innerHTML = 'Wird gestartet...';
+    document.body.innerHTML = 'Warten auf Signal...';
 
     while (port.readable) {
         const reader = port.readable.getReader();
@@ -58,21 +57,17 @@ async function start() {
                 rawdatablock += lastitem;
                 datablock = rawdatablock.split('\r\n');
                 // console.log(datablock);
-                if (datablock[17] == 9999991) {
-                    console.log(`Datenblock ${datablock[16]} empfangen!`);
+                if (datablock[16] == 9999991) {
+                    // console.log(`Datenblock ${datablock[1]} empfangen!`);
                     rawdatablock = '';
 
-                    if (datablock[0] == 9999990 && // Überprüfen, ob alle Daten empfangen wurden
-                        // datablock[4] == 9999991 &&
-                        // datablock[8] == 9999992 &&
-                        // datablock[12] == 9999993 &&
-                        // datablock[16] == 9999994 &&
-                        // datablock[20] == 9999995 &&
-                        datablock[17] == 9999991) {
+                    if (datablock[0] == 9999990 &&
+                        datablock[16] == 9999991 &&
+                        dataBlockOK(datablock)) {
+                        data.messages.push(datablock[1]);
 
-                        data.temperature.push(datablock[1]); // Alle Daten hinzufügen
-                        data.pressure.push(datablock[2]);
-                        data.altitude2.push(datablock[3]);
+                        data.temperature.push(datablock[2]);
+                        data.pressure.push(datablock[3]);
 
                         data.accelerationX.push(datablock[4]);
                         data.accelerationY.push(datablock[5]);
@@ -87,10 +82,7 @@ async function start() {
                         data.altitude.push(datablock[12]);
 
                         data.fan.push(datablock[13]);
-                        data.ready.push(datablock[14]);
-                        data.landed.push(datablock[15]);
-
-                        data.sended.push(datablock[16]);
+                        data.landed.push(datablock[14]);
 
                         if (timer != undefined) {
                             data.time.push(Date.now() - timer);
@@ -120,6 +112,15 @@ async function start() {
             reader.releaseLock();
         }
     }
+}
+
+function dataBlockOK(datablock) {
+    datablock.forEach(item => {
+        if (item == NaN || item == undefined || item == null) {
+            return false;
+        }
+    });
+    return true;
 }
 
 async function calcRelativePos(data, recalc = false) {
@@ -171,16 +172,17 @@ async function calcRelativePos(data, recalc = false) {
 
 async function refreshScreen(data) {
     document.body.innerHTML =
-        '<div class="big">Temperatur: <br>' + generateSVGChart(data.temperature, bigwidth, 100, 5) + '</div>' +
-        '<div class="big">Druck: <br>' + generateSVGChart(data.pressure, bigwidth, 100, 5) + '</div>' +
-        '<div class="big">Höhenmeter (laut BMP): <br>' + generateSVGChart(data.altitude2, bigwidth, 100, 5) + '</div>' +
-        '<div class="medium">Verschiebung (relativ zum Startpunkt): <br>' + `X: ${movementX.toFixed(3)}m<br>Y: ${movementY.toFixed(3)}m<br>Z: ${movementZ.toFixed(3)}m` + '</div>' +
-        '<div class="medium">Verschiebung (relativ zum Startpunkt): <br>' + `X: ${movementX.toFixed(3)}m<br>Y: ${movementY.toFixed(3)}m<br>Z: ${movementZ.toFixed(3)}m` + '</div>' +
-        '<div class="small">Beschleunigung (X-Achse): <br>' + generateSVGChart(data.accelerationX, smallwidth, 200, 5) + '</div>' +
-        '<div class="small">Beschleunigung (Y-Achse): <br>' + generateSVGChart(data.accelerationY, smallwidth, 200, 5) + '</div>' +
-        '<div class="small">Beschleunigung (Z-Achse): <br>' + generateSVGChart(data.accelerationZ, smallwidth, 200, 5) + '</div>' +
+        '<div class="big">Temperatur [°C]: <br>' + generateSVGChart(data.temperature, bigwidth, 100, 5) + '</div>' +
+        '<div class="big">Druck [Pa]: <br>' + generateSVGChart(data.pressure, bigwidth, 100, 5) + '</div>' +
+        // '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(data.altitude2, bigwidth, 100, 5) + '</div>' +
+        '<div class="small">Verschiebung (Luftdruck) [m]: <br>' + `Z: ${movementZ.toFixed(3)}m` + '</div>' +
+        '<div class="small">Verschiebung (Beschleunigung) [m]: <br>' + `X: ${movementX.toFixed(3)}m<br>Y: ${movementY.toFixed(3)}m<br>Z: ${movementZ.toFixed(3)}m` + '</div>' +
+        '<div class="small">Verschiebung (GPS) [m]: <br>' + `X: ${movementX.toFixed(3)}m<br>Y: ${movementY.toFixed(3)}m<br>Z: ${movementZ.toFixed(3)}m` + '</div>' +
+        '<div class="small">Beschleunigung (X-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationX, smallwidth, 200, 5) + '</div>' +
+        '<div class="small">Beschleunigung (Y-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationY, smallwidth, 200, 5) + '</div>' +
+        '<div class="small">Beschleunigung (Z-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationZ, smallwidth, 200, 5) + '</div>' +
         '<div class="small">Rotation (X-Achse): <br>' + generateSVGChart(data.rotationX, smallwidth, 200, 5) + '</div>' +
         '<div class="small">Rotation (Y-Achse): <br>' + generateSVGChart(data.rotationY, smallwidth, 200, 5) + '</div>' +
         '<div class="small">Rotation (Z-Achse): <br>' + generateSVGChart(data.rotationZ, smallwidth, 200, 5) + '</div>' +
-        '<div class="big">' + data.sended.length + ' von ' + Math.round(data.sended[data.sended.length - 1]) + ' Datenblöcken empfangen.<br>Letzter Datenblock wurde mit ' + data.time[data.time.length - 1] + ' ms zum vorherigen empfangen.</div>';
+        '<div class="big">' + data.messages.length + ' von ' + Math.round(data.messages[data.messages.length - 1]) + ' Datenblöcken empfangen.<br>Letzter Datenblock wurde mit ' + data.time[data.time.length - 1] + ' ms zum vorherigen empfangen.</div>';
 }

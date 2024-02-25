@@ -249,6 +249,7 @@ function exportData() {
     refreshScreen();
 }
 
+let sdraw = '';
 async function importFromSD() {
     port = await navigator.serial.requestPort();
     await port.open({ baudRate: 9600 });
@@ -278,7 +279,6 @@ async function importFromSD() {
 
                     console.log('Port wird freigeschaltet...');
 
-                    let raw = '';
                     const decoder = new TextDecoder();
                     while (true) {
                         const { value, done } = await reader.read();
@@ -286,8 +286,7 @@ async function importFromSD() {
                             alert('Verbindung getrennt!');
                             break;
                         }
-                        raw += decoder.decode(value);
-                        processRawData(raw);
+                        sdraw += decoder.decode(value);
                     }
                 }
             }
@@ -300,14 +299,15 @@ async function importFromSD() {
 }
 
 function processRawData(rawdata) {
+    console.log('Roh-Daten werden verarbeitet...');
     let newdata = rawdata.split('\r\n');
-    console.log(newdata);
+    //console.log(newdata);
 
     newdata.forEach(item => {
         datablock.push(item);
 
         if (datablock[14] == 9999991) {
-            console.log(`Datenblock ${newdata[1]} empfangen!`);
+            //console.log(`Datenblock ${newdata[1]} empfangen!`);
 
             if (datablock[0] == 9999990 &&
                 datablock[14] == 9999991 &&

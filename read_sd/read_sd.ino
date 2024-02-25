@@ -16,10 +16,11 @@ void setup() {
   Serial.println("Files: ");
   int counter = 0;
   while (SD.exists(String(counter))) {
-    Serial.println(counter);
+    //Serial.println(counter);
     counter++;
   }
-  Serial.println("Select file to open");
+  Serial.print("Select file to open: 0-");
+  Serial.println(counter - 1);
 }
 
 void loop() {

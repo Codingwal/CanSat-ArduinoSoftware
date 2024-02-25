@@ -55,14 +55,21 @@ let lastuseddatablock = 0;
 
 let rawdata = '';
 
+let port;
+
 async function start() {
-    const port = await navigator.serial.requestPort();
+    port = await navigator.serial.requestPort();
     await port.open({ baudRate: 9600 });
 
     document.body.innerHTML = 'Warten auf Signal...';
 
+    readPort();
+}
+
+async function readPort() {
     while (port.readable) {
         const reader = port.readable.getReader();
+        const decoder = new TextDecoder();
         try {
             while (true) {
                 const { value, done } = await reader.read();
@@ -70,13 +77,13 @@ async function start() {
                     alert('Verbindung getrennt!')
                     break;
                 }
-                let lastitem = new TextDecoder().decode(value);
+                let lastitem = decoder.decode(value);
                 rawdatablock += lastitem;
                 rawdata += lastitem;
                 datablock = rawdatablock.split('\r\n');
-                // console.log(datablock);
+                console.log(datablock[datablock.length - 1]);
                 if (datablock[14] == 9999991) {
-                    // console.log(`Datenblock ${datablock[1]} empfangen!`);
+                    console.log(`Datenblock ${datablock[1]} empfangen!`);
                     rawdatablock = '';
 
                     if (datablock[0] == 9999990 &&
@@ -240,4 +247,111 @@ function exportData() {
     link.remove(link);
 
     refreshScreen();
+}
+
+async function importFromSD() {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 9600 });
+
+    let text = '';
+    let loop = true;
+
+    while (port.readable) {
+        const reader = port.readable.getReader();
+        try {
+            while (loop) {
+                const decoder = new TextDecoder();
+                const { value, done } = await reader.read();
+                if (done) {
+                    alert('Verbindung getrennt!')
+                    break;
+                }
+
+                text += decoder.decode(value);
+                if (text.search('open') >= 0) {
+                    loop = false;
+                    let filename = prompt(text);
+                    console.log(filename);
+                    let writer = await port.writable.getWriter();
+                    writer.write(new TextEncoder().encode(filename));
+                    console.log('Dateinamen gesendet!');
+
+                    console.log('Port wird freigeschaltet...');
+
+                    let raw = '';
+                    const decoder = new TextDecoder();
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) {
+                            alert('Verbindung getrennt!');
+                            break;
+                        }
+                        raw += decoder.decode(value);
+                        processRawData(raw);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Es ist ein Fehler aufgetreten: ' + error);
+        } finally {
+            reader.releaseLock();
+        }
+    }
+}
+
+function processRawData(rawdata) {
+    let newdata = rawdata.split('\r\n');
+    console.log(newdata);
+
+    newdata.forEach(item => {
+        datablock.push(item);
+
+        if (datablock[14] == 9999991) {
+            console.log(`Datenblock ${newdata[1]} empfangen!`);
+
+            if (datablock[0] == 9999990 &&
+                datablock[14] == 9999991 &&
+                dataBlockOK(datablock)) {
+                data.messages.push(datablock[1]);
+
+                data.temperature.push(datablock[2] - calibration.temperature);
+                data.pressure.push(datablock[3]);
+
+                data.accelerationX.push(datablock[4] - calibration.accelerationX);
+                data.accelerationY.push(datablock[5] - calibration.accelerationY);
+                data.accelerationZ.push(datablock[6] - calibration.accelerationZ);
+
+                data.rotationX.push(datablock[7]);
+                data.rotationY.push(datablock[8]);
+                data.rotationZ.push(datablock[9]);
+
+                data.latitude.push(datablock[10]);
+                data.longitude.push(datablock[11]);
+                data.altitude.push(datablock[12]);
+
+                let infos = datablock[13];
+                data.fan.push(infos & 1);
+                data.ejected.push((infos >> 1) & 1);
+                data.landed.push((infos >> 2) & 1);
+
+                if (timer != undefined) {
+                    data.time.push(Date.now() - timer);
+                } else {
+                    data.time.push(0);
+                }
+
+                timer = Date.now();
+
+                calcRelativePos(data);
+
+                refreshScreen(data);
+            } else {
+                console.log('Fehlerhafter Datenblock!');
+            }
+        }
+
+        if (item == 9999990) {
+            datablock = [9999990];
+        }
+    });
 }

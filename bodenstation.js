@@ -225,7 +225,7 @@ function exportRawData() {
 
     document.body.append(link);
     link.click();
-    document.body.remove(link);
+    link.remove();
 
     refreshScreen();
 }
@@ -237,7 +237,7 @@ function exportData() {
 
     document.body.append(link);
     link.click();
-    document.body.remove(link);
+    link.remove(link);
 
     refreshScreen();
 }

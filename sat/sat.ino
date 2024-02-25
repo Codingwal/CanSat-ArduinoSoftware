@@ -71,30 +71,33 @@ void setup() {
   pinMode(FAN_PIN, OUTPUT);
   digitalWrite(FAN_PIN, LOW);
 
-  Serial.println(1);
-  /*if (!bmp.begin(BMP280_I2C_ADDRESS)) {
+  if (!bmp.begin(BMP280_I2C_ADDRESS)) {
     Serial.println(501);
     problem = true;
-  }*/
-  Serial.println(2);
-  if (!bno.begin()) {
+  }
+  /*if (!bno.begin()) {
     Serial.println(502);
     problem = true;
-  }
-  Serial.println(3);
+  }*/
   if (!rf95.init())
   {
     Serial.println(503);
     problem = true;
   }
-  Serial.println(4);
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println(504);
     problem = true;
   }
-  Serial.println(5);
 
-  file = SD.open(FILEPATH, FILE_WRITE);
+  float pressure = bmp.readPressure();
+  sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
+  startaltitude = calcAltitude(pressure);
+
+  int counter = 0;
+  while (SD.exists(String(counter))) {
+    counter++;
+  }
+  file = SD.open(String(counter), FILE_WRITE);
   if (file) {
     file.println(""); // Es muss irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
   } else {
@@ -106,11 +109,6 @@ void setup() {
     ss.begin(9600);*/
 
   rf95.setFrequency(FREQUENCY);
-
-  float pressure = bmp.readPressure();
-  sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
-  startaltitude = calcAltitude(pressure);
-  Serial.println(startaltitude);
 
   if (problem) {
     while (true) {

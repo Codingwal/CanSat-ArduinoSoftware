@@ -22,8 +22,8 @@ function generateSVGChart(values, width, height, weight) {
 
         svg += `" fill="none" stroke="currentColor" stroke-width="${weight}" stroke-linejoin="round" stroke-linecap="round"></path>`;
 
-        svg += `<text x="5" font-size="15" y="${height}">${minValue}</text>`;
-        svg += `<text x="5" font-size="15" y="15">${maxValue}</text>`;
+        svg += `<text x="5" font-size="12" y="${height}">${Number(minValue).toFixed(3)}</text>`;
+        svg += `<text x="5" font-size="12" y="12">${Number(maxValue).toFixed(3)}</text>`;
 
         return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
     }

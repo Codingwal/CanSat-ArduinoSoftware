@@ -35,15 +35,16 @@
 #define FILEPATH "data.txt"
 
 Adafruit_BMP280 bmp;
-Adafruit_BNO055 bno;
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
 //SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
 //SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
 //TinyGPSPlus gps;
 SoftwareSerial rf(LORA_RX_PIN, LORA_TX_PIN);
 RH_RF95 rf95(rf);
 
-float pressure;
+float startaltitude; // Mit Luftdruck vom BMP280
 float sealevelhpa;
+float altitude;
 
 bool fan = false;
 bool ejected = false;
@@ -70,23 +71,28 @@ void setup() {
   pinMode(FAN_PIN, OUTPUT);
   digitalWrite(FAN_PIN, LOW);
 
-  if (!bmp.begin(BMP280_I2C_ADDRESS)) {
+  Serial.println(1);
+  /*if (!bmp.begin(BMP280_I2C_ADDRESS)) {
     Serial.println(501);
     problem = true;
-  }
+  }*/
+  Serial.println(2);
   if (!bno.begin()) {
     Serial.println(502);
     problem = true;
   }
+  Serial.println(3);
   if (!rf95.init())
   {
     Serial.println(503);
     problem = true;
   }
+  Serial.println(4);
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println(504);
     problem = true;
   }
+  Serial.println(5);
 
   file = SD.open(FILEPATH, FILE_WRITE);
   if (file) {
@@ -100,7 +106,11 @@ void setup() {
     ss.begin(9600);*/
 
   rf95.setFrequency(FREQUENCY);
-  sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, bmp.readPressure());
+
+  float pressure = bmp.readPressure();
+  sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
+  startaltitude = calcAltitude(pressure);
+  Serial.println(startaltitude);
 
   if (problem) {
     while (true) {
@@ -154,17 +164,24 @@ void loop() {
   BMP();
   BNO();
   GPS();
-  send(fan);
-  send(landed);
+  int infos = (fan << 0) + (ejected << 1) + (landed << 2);
+  send(infos);
   send(9999991);
   messages++;
 }
 
 void BMP() {
-  pressure = bmp.readPressure();
+  float pressure = bmp.readPressure();
+
+  altitude = calcAltitude(pressure);
 
   send(bmp.readTemperature()); // Temperatur senden
   send(pressure);
+}
+
+float calcAltitude(float pressure) {
+  // https://github.com/adafruit/Adafruit_BMP280_Library/blob/master/Adafruit_BMP280.cpp [Zeile 321] oder im Heft Lernen mit ARDUINO!
+  return 44300 * (1 - (pow(pressure / sealevelhpa, 0.1903)));
 }
 
 void BNO() {

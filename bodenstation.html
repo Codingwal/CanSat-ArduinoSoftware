@@ -18,8 +18,12 @@
             font-family: monospace;
 
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+            /* grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px; */
+            grid-template-columns: auto auto auto auto auto auto;
             gap: 10px;
+            justify-items: stretch;
+
             width: calc(100% - 20px);
             margin: 10px;
         }
@@ -52,8 +56,12 @@
             grid-column: 1 / span 6;
         }
 
+        .medium {
+            grid-column: auto / span 3;
+        }
+
         .small {
-            width: 2fr;
+            grid-column: auto / span 2;
         }
     </style>
 </head>

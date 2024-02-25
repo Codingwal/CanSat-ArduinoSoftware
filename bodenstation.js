@@ -1,7 +1,18 @@
+const startaltitude = 30;
+
 let rawdatablock = '';
 let datablock = [];
-let bigwidth = document.body.offsetWidth - 40;
+let bigwidth = (document.body.offsetWidth - 10) / 1 - 30;
+let mediumwidth = (document.body.offsetWidth - 10) / 2 - 30;
 let smallwidth = (document.body.offsetWidth - 10) / 3 - 30;
+let lineweight = 2.5;
+
+const calibration = {
+    temperature: 0,
+    accelerationX: 0,
+    accelerationY: 0,
+    accelerationZ: 0
+}
 
 let data = {
     temperature: [],
@@ -16,27 +27,33 @@ let data = {
     longitude: [],
     altitude: [],
     fan: [],
-    ready: [],
+    ejected: [],
     landed: [],
     messages: [],
     time: [] // Zeit bis zum Datenblock
 }
 
+let bmp_altitude = [];
+
+let sealevelhpa;
+
 let timer;
 
 let startdatablock = 0; // Ab welchem Datenblock die relative Position bestimmt werden soll
+
+// BMP
+let bmp_height = 0;
 
 // BNO
 let movementX = 0;
 let movementY = 0;
 let movementZ = 0;
 
-// BMP
-let height = 0;
-
 let startheight = undefined;
 
 let lastuseddatablock = 0;
+
+let rawdata = '';
 
 async function start() {
     const port = await navigator.serial.requestPort();
@@ -55,23 +72,24 @@ async function start() {
                 }
                 let lastitem = new TextDecoder().decode(value);
                 rawdatablock += lastitem;
+                rawdata += lastitem;
                 datablock = rawdatablock.split('\r\n');
                 // console.log(datablock);
-                if (datablock[16] == 9999991) {
+                if (datablock[14] == 9999991) {
                     // console.log(`Datenblock ${datablock[1]} empfangen!`);
                     rawdatablock = '';
 
                     if (datablock[0] == 9999990 &&
-                        datablock[16] == 9999991 &&
+                        datablock[14] == 9999991 &&
                         dataBlockOK(datablock)) {
                         data.messages.push(datablock[1]);
 
-                        data.temperature.push(datablock[2]);
+                        data.temperature.push(datablock[2] - calibration.temperature);
                         data.pressure.push(datablock[3]);
 
-                        data.accelerationX.push(datablock[4]);
-                        data.accelerationY.push(datablock[5]);
-                        data.accelerationZ.push(datablock[6]);
+                        data.accelerationX.push(datablock[4] - calibration.accelerationX);
+                        data.accelerationY.push(datablock[5] - calibration.accelerationY);
+                        data.accelerationZ.push(datablock[6] - calibration.accelerationZ);
 
                         data.rotationX.push(datablock[7]);
                         data.rotationY.push(datablock[8]);
@@ -81,8 +99,10 @@ async function start() {
                         data.longitude.push(datablock[11]);
                         data.altitude.push(datablock[12]);
 
-                        data.fan.push(datablock[13]);
-                        data.landed.push(datablock[14]);
+                        let infos = datablock[13];
+                        data.fan.push(infos & 1);
+                        data.ejected.push((infos >> 1) & 1);
+                        data.landed.push((infos >> 2) & 1);
 
                         if (timer != undefined) {
                             data.time.push(Date.now() - timer);
@@ -102,7 +122,7 @@ async function start() {
                 if (lastitem == 9999990) { // Neuer Datenblock fängt an
                     rawdatablock = '9999990\r\n';
                 }
-                if (datablock.length > 20) { // Bei zu langen Blöcken neu anfangen
+                if (datablock.length > 15) { // Bei zu langen Blöcken neu anfangen
                     rawdatablock = '';
                 }
             }
@@ -123,6 +143,15 @@ function dataBlockOK(datablock) {
     return true;
 }
 
+function calcSeaLevelHpa(pressure, altitude) {
+    return pressure / Math.pow(1 - (altitude / 44330.0), 5.255);
+}
+
+function calcAltitude(pressure) {
+    // https://github.com/adafruit/Adafruit_BMP280_Library/blob/master/Adafruit_BMP280.cpp [Zeile 321] oder im Heft Lernen mit ARDUINO!
+    return 44300 * (1 - (Math.pow(pressure / sealevelhpa, 0.1903)));
+}
+
 async function calcRelativePos(data, recalc = false) {
     if (recalc) {
         // BNO
@@ -131,11 +160,10 @@ async function calcRelativePos(data, recalc = false) {
         movementZ = 0;
 
         // BMP
-        height = 0;
+        sealevelhpa = undefined;
+        bmp_altitude = [];
 
         lastuseddatablock = 0;
-
-        startheight = undefined;
     }
 
     let newmovementX, newmovementY, newmovementZ;
@@ -162,27 +190,54 @@ async function calcRelativePos(data, recalc = false) {
             movementZ -= newmovementZ;
         }
 
-        if (startheight == undefined) {
-            //startheight = height;
+        if (sealevelhpa == undefined) {
+            sealevelhpa = calcSeaLevelHpa(data.pressure[startdatablock], startaltitude);
         }
+        bmp_altitude.push(calcAltitude(data.pressure[i]));
 
         lastuseddatablock = i;
     }
+    bmp_height = bmp_altitude[bmp_altitude.length - 1] - startaltitude;
 }
 
 async function refreshScreen(data) {
     document.body.innerHTML =
-        '<div class="big">Temperatur [°C]: <br>' + generateSVGChart(data.temperature, bigwidth, 100, 5) + '</div>' +
-        '<div class="big">Druck [Pa]: <br>' + generateSVGChart(data.pressure, bigwidth, 100, 5) + '</div>' +
-        // '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(data.altitude2, bigwidth, 100, 5) + '</div>' +
-        '<div class="small">Verschiebung (Luftdruck) [m]: <br>' + `Z: ${movementZ.toFixed(3)}m` + '</div>' +
-        '<div class="small">Verschiebung (Beschleunigung) [m]: <br>' + `X: ${movementX.toFixed(3)}m<br>Y: ${movementY.toFixed(3)}m<br>Z: ${movementZ.toFixed(3)}m` + '</div>' +
-        '<div class="small">Verschiebung (GPS) [m]: <br>' + `X: ${movementX.toFixed(3)}m<br>Y: ${movementY.toFixed(3)}m<br>Z: ${movementZ.toFixed(3)}m` + '</div>' +
-        '<div class="small">Beschleunigung (X-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationX, smallwidth, 200, 5) + '</div>' +
-        '<div class="small">Beschleunigung (Y-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationY, smallwidth, 200, 5) + '</div>' +
-        '<div class="small">Beschleunigung (Z-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationZ, smallwidth, 200, 5) + '</div>' +
-        '<div class="small">Rotation (X-Achse): <br>' + generateSVGChart(data.rotationX, smallwidth, 200, 5) + '</div>' +
-        '<div class="small">Rotation (Y-Achse): <br>' + generateSVGChart(data.rotationY, smallwidth, 200, 5) + '</div>' +
-        '<div class="small">Rotation (Z-Achse): <br>' + generateSVGChart(data.rotationZ, smallwidth, 200, 5) + '</div>' +
-        '<div class="big">' + data.messages.length + ' von ' + Math.round(data.messages[data.messages.length - 1]) + ' Datenblöcken empfangen.<br>Letzter Datenblock wurde mit ' + data.time[data.time.length - 1] + ' ms zum vorherigen empfangen.</div>';
+        '<div class="big"><a onclick="exportData()">Daten exportieren</a> | <a onclick="exportRawData()">Roh-Daten exportieren</a></div>' +
+        '<div class="medium">Temperatur [°C]: <br>' + generateSVGChart(data.temperature, mediumwidth, 100, lineweight) + '</div>' +
+        '<div class="medium">Druck [Pa]: <br>' + generateSVGChart(data.pressure, mediumwidth, 100, lineweight) + '</div>' +
+        '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(bmp_altitude, bigwidth, 100, lineweight) + '</div>' +
+        '<div class="small">Höhe (Luftdruck): <br>' + bmp_height.toFixed(3) + 'm</div>' +
+        '<div class="small">Verschiebung (Beschleunigung): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +
+        '<div class="small">Verschiebung (GPS): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +
+        '<div class="small">Beschleunigung (X-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationX, smallwidth, 100, lineweight) + '</div>' +
+        '<div class="small">Beschleunigung (Y-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationY, smallwidth, 100, lineweight) + '</div>' +
+        '<div class="small">Beschleunigung (Z-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationZ, smallwidth, 100, lineweight) + '</div>' +
+        '<div class="small">Rotation (X-Achse): <br>' + generateSVGChart(data.rotationX, smallwidth, 100, lineweight) + '</div>' +
+        '<div class="small">Rotation (Y-Achse): <br>' + generateSVGChart(data.rotationY, smallwidth, 100, lineweight) + '</div>' +
+        '<div class="small">Rotation (Z-Achse): <br>' + generateSVGChart(data.rotationZ, smallwidth, 100, lineweight) + '</div>' +
+        '<div class="big">' + (data.messages.length - 1) + ' von ' + Math.round(data.messages[data.messages.length - 1]) + ' Datenblöcken empfangen.<br>Letzter Datenblock wurde mit ' + data.time[data.time.length - 1] + ' ms zum vorherigen empfangen.</div>';
+}
+
+function exportRawData() {
+    let link = document.createElement('a');
+    link.href = 'data:text/plain,' + encodeURIComponent(rawdata);
+    link.download = 'rawdata.canz';
+
+    document.body.append(link);
+    link.click();
+    document.body.remove(link);
+
+    refreshScreen();
+}
+
+function exportData() {
+    let link = document.createElement('a');
+    link.href = 'data:text/json,' + encodeURIComponent(JSON.stringify(data));
+    link.download = 'data.canz';
+
+    document.body.append(link);
+    link.click();
+    document.body.remove(link);
+
+    refreshScreen();
 }

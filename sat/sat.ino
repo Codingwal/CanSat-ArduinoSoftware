@@ -48,9 +48,6 @@
 
 #define STARTALTITUDE 30  // Höhe vor dem Start vom Flugplatz
 
-#define FLOATSIZE 4 // sizeof(float)
-
-
 Adafruit_BMP280 bmp;
 Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
 //SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
@@ -91,30 +88,16 @@ void setup() {
 
   // Init BMP (Luftdruck & Temperatur)
   if (!bmp.begin(BMP280_I2C_ADDRESS)) {
-    Serial.println(501);
-    problem = true;
-  }
-  /*if (!bno.begin()) {
-    Serial.println(502);
-    problem = true;
-    }*/
-  if (!rf95.init())
-  {
-    Serial.println(503);
-    problem = true;
-  }
-  if (!SD.begin(SD_CS_PIN)) {
-    Serial.println(504);
-    problem = true;
+    error(ERROR_BMP);
   }
 
   float pressure = bmp.readPressure();
   sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
 
   // Init BNO (Inertialplatform)
-  if (!bno.begin()) {
+  /*if (!bno.begin()) {
     error(ERROR_BNO);
-  }
+  }*/
 
   // Init RF95 (Funkmodul)
   if (!rf95.init()) {

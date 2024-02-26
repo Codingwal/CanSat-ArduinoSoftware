@@ -7,16 +7,6 @@
 #include <RH_RF95.h>
 #include <SD.h>
 
-#define BMP280_I2C_ADDRESS 0x76
-#define BNO055_I2C_ADDRESS 0x28
-#define FAN_PIN 4
-#define GPS_RX_PIN 00
-#define GPS_TX_PIN 00
-#define LORA_RX_PIN 5
-#define LORA_TX_PIN 6
-#define LED_PIN 2
-#define SPEAKER_PIN 8
-#define SD_CS_PIN 10
 
 /*
   SPI Pins Arduino Nano
@@ -28,16 +18,41 @@
   https://funduino.de/nr-28-das-sd-karten-modul
 */
 
-#define FREQUENCY 433.0
 
-#define FAN_ACTIVATING_HEIGHT 100 // Ab welcher Höhe der Föhn in Betrieb genommen werden soll
+// I2C Adressen
+#define BMP280_I2C_ADDRESS 0x76
+#define BNO055_I2C_ADDRESS 0x28
 
-#define STARTALTITUDE 30 // Höhe vor dem Start vom Flugplatz
+// PIN Belegungen
+#define FAN_PIN 4
+#define GPS_RX_PIN 00
+#define GPS_TX_PIN 00
+#define LORA_RX_PIN 5
+#define LORA_TX_PIN 6
+#define LED_PIN 2
+#define SPEAKER_PIN 8
+#define SD_CS_PIN 10
+
+// Fehlercodes
+#define ERROR_BMP 501
+#define ERROR_BNO 502
+#define ERROR_RF95 503
+#define ERROR_SD_CONNECT 504
+#define ERROR_SD_OPEN 505
+
+// Kontrollwerte vor und nach der Datenübertragung
+#define DATA_BLOCK_START 0xFFFFFFFF  // maximaler 32b Wert
+#define DATA_BLOCK_END 0xFFFFFFFE    // maximaler 32b Wert minus 1
+
+#define FREQUENCY 433.0  // Datenübertragungsfrequenz (in MHz)
+
+#define STARTALTITUDE 30  // Höhe vor dem Start vom Flugplatz
 
 #define FLOATSIZE 4 // sizeof(float)
 
+
 Adafruit_BMP280 bmp;
-Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
+Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
 //SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
 //SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
 //TinyGPSPlus gps;
@@ -51,7 +66,7 @@ bool fan = false;
 bool ejected = false;
 bool landed = false;
 
-int messages = 0;
+int messageIndex = 0;
 
 File file;
 
@@ -64,14 +79,17 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
 
-  /*pinMode(GPS_RX_PIN, OUTPUT); // GPS-Pin auf Output setzen
+  /*
+    pinMode(GPS_RX_PIN, OUTPUT); // GPS-Pin auf Output setzen
     pinMode(GPS_TX_PIN, OUTPUT); // GPS-Pin auf Output setzen
     digitalWrite(GPS_RX_PIN, LOW); // Spannung auf GPS-Pin ausschalten
-    digitalWrite(GPS_TX_PIN, LOW); // Spannung auf GPS-Pin ausschalten*/
+    digitalWrite(GPS_TX_PIN, LOW); // Spannung auf GPS-Pin ausschalten
+  */
 
   pinMode(FAN_PIN, OUTPUT);
   digitalWrite(FAN_PIN, LOW);
 
+  // Init BMP (Luftdruck & Temperatur)
   if (!bmp.begin(BMP280_I2C_ADDRESS)) {
     Serial.println(501);
     problem = true;
@@ -93,70 +111,75 @@ void setup() {
   float pressure = bmp.readPressure();
   sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
 
-  int counter = 0;
-  while (SD.exists(String(counter))) {
-    counter++;
-  }
-  file = SD.open(String(counter), FILE_WRITE);
-  if (file) {
-    file.println(""); // Es muss irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
-  } else {
-    Serial.println(505);
-    problem = true;
+  // Init BNO (Inertialplatform)
+  if (!bno.begin()) {
+    error(ERROR_BNO);
   }
 
-  /*gpsSerial.begin(9600);
-    ss.begin(9600);*/
-
+  // Init RF95 (Funkmodul)
+  if (!rf95.init()) {
+    error(ERROR_RF95);
+  }
   rf95.setFrequency(FREQUENCY);
 
-  if (problem) {
-    while (true) {
-      digitalWrite(LED_PIN, LOW);
-      tone(SPEAKER_PIN, 1000);
-      delay(500);
-      digitalWrite(LED_PIN, HIGH);
-      noTone(SPEAKER_PIN);
-      delay(500);
-    }
-  } else {
-    Serial.println(200);
-    tone(SPEAKER_PIN, 200);
-    delay(100);
-    tone(SPEAKER_PIN, 400);
-    delay(100);
-    tone(SPEAKER_PIN, 600);
-    delay(100);
-    noTone(SPEAKER_PIN);
-    digitalWrite(LED_PIN, LOW);
+  // Init SD (Speicher)
+  if (!SD.begin(SD_CS_PIN)) {
+    Serial.println(ERROR_SD_CONNECT);
+    problem = true;
   }
+  {
+    // Datei mit höchstem Wert als Namen finden und dann mit Wert + 1 als Namen eine Datei erstellen
+    // So muss nicht nach jedem Test die SD Karte geleert werden, sondern die Dateien sind chronologisch sortiert
+    int counter = 0;
+    while (SD.exists(String(counter))) {
+      counter++;
+    }
+    file = SD.open(String(counter), FILE_WRITE);
+    if (file) {
+      file.println("");  // Es muss irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
+    } else {
+      error(ERROR_SD_OPEN);
+    }
+  }
+
+  // Init GPS
+  gpsSerial.begin(9600);
+  ss.begin(9600);
+
+  // Erfolg-Tonabfolge, LED aus
+  Serial.println(200);
+  tone(SPEAKER_PIN, 200);
+  delay(100);
+  tone(SPEAKER_PIN, 400);
+  delay(100);
+  tone(SPEAKER_PIN, 600);
+  delay(100);
+  noTone(SPEAKER_PIN);
+  digitalWrite(LED_PIN, LOW);
 }
 
 void loop() {
-  send(9999990);
-  send(messages);
-  BMP();
-  BNO();
-  GPS();
 
-  float height = bmp_altitude - STARTALTITUDE;
-  if (height < FAN_ACTIVATING_HEIGHT) { // Beispielwert
-    digitalWrite(FAN_PIN, HIGH); // Lüfter einschalten
-    fan = true;
-  }
-
+  // Nach dem Auswerfen Piepen (jedes mal Wechsel zwischen Ton und kein Ton, wird anhand der gesendeten Nachrichten bestimmt)
   if (ejected) {
-    if (messages % 2 == 0) {
+    if (messageIndex % 2 == 0) {
       tone(SPEAKER_PIN, 1000);
     } else {
       noTone(SPEAKER_PIN);
     }
   }
 
-  int infos = (fan << 0) + (ejected << 1) + (landed << 2);
-  send(infos);
-  send(9999991);
-  messages++;
+  // Sendet einen Datenblock, die Unterfunktionen senden die jeweiligen Werte selber
+  // Am Anfang und am Ende wird ein Kontrollwert gesendet
+  send(DATA_BLOCK_START);
+  send(messageIndex);
+  BMP();
+  BNO();
+  GPS();
+  send((fan << 0) + (ejected << 1) + (landed << 2));  // Sendet alle Bools in einem Byte
+  send(DATA_BLOCK_END);
+
+  messageIndex++;
 }
 
 void BMP() {
@@ -164,7 +187,7 @@ void BMP() {
 
   bmp_altitude = calcAltitude(pressure);
 
-  send(bmp.readTemperature()); // Temperatur senden
+  send(bmp.readTemperature());  // Temperatur senden
   send(pressure);
 }
 
@@ -175,7 +198,7 @@ float calcAltitude(float pressure) {
 
 void BNO() {
   sensors_event_t accelerometer, gyroscope;
-  bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL); // Acceleration - Gravity
+  bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL);  // Acceleration - Gravity
   send(accelerometer.acceleration.x);
   send(accelerometer.acceleration.y);
   send(accelerometer.acceleration.z);
@@ -191,20 +214,20 @@ void GPS() {
   float longitude;
   float altitude;
 
-  /*while (gpsSerial.available()) {
+  while (gpsSerial.available()) {
     if (gps.encode(gpsSerial.read())) {
       gps.f_get_position(&latitude, &longitude);
       altitude = gps.f_altitude();
     }
-    }*/
+  }
 
-  /*while (ss.available() > 0) {
+  while (ss.available() > 0) {
     gps.encode(ss.read());
     if (gps.location.isUpdated()) {
       latitude = gps.location.lat(), 3;
       longitude = gps.location.lng(), 3;
     }
-    }*/
+  }
 
   send(latitude);
   send(longitude);
@@ -212,10 +235,28 @@ void GPS() {
 }
 
 void send(float val) {
+  // Ändert den Typ von float zu uint8_t[], ohne tatsächlich Bits zu modifizieren
+  uint8_t tosend[sizeof(float)];
+  memcpy(&tosend, &val, sizeof(float));
+  rf95.send(tosend, sizeof(float));
+
+  // Wert als eine Zeile in die Datei schreiben
   file.println(val, DEC);
+
+  // Tatsächlich physisch Speichern, wäre ansonsten evtl. nur im Buffer was zu Fehlern führen kann
   file.flush();
 
-  uint8_t tosend[FLOATSIZE];
-  memcpy(&tosend, &val, FLOATSIZE);
-  rf95.send(tosend, FLOATSIZE);
+void error(int errorCode) {
+  // Fehler code zum Debuggen an den Laptop schicken
+  Serial.println(errorCode);
+
+  // Dauerhaftes Fehler-Piepen und blinkende LED
+  while (true) {
+    digitalWrite(LED_PIN, LOW);
+    tone(SPEAKER_PIN, 1000);
+    delay(500);
+    digitalWrite(LED_PIN, HIGH);
+    noTone(SPEAKER_PIN);
+    delay(500);
+  }
 }

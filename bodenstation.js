@@ -44,6 +44,8 @@ let timer;
 
 let startdatablock = 0; // Ab welchem Datenblock die relative Position bestimmt werden soll
 
+let corruptdatablocks = 0; // Anzahl an Fehlerhaften Datenblöcken
+
 // BMP
 let bmp_height = 0;
 
@@ -127,7 +129,7 @@ async function readPort() {
 
                         refreshScreen(data);
                     } else {
-                        console.log('Fehlerhafter Datenblock!');
+                        corruptdatablocks++
                     }
                 }
                 if (lastitem == datablockstart) { // Neuer Datenblock fängt an
@@ -226,7 +228,7 @@ async function refreshScreen(data) {
         '<div class="small">Rotation (X-Achse): <br>' + generateSVGChart(data.rotationX, smallwidth, 100, lineweight) + '</div>' +
         '<div class="small">Rotation (Y-Achse): <br>' + generateSVGChart(data.rotationY, smallwidth, 100, lineweight) + '</div>' +
         '<div class="small">Rotation (Z-Achse): <br>' + generateSVGChart(data.rotationZ, smallwidth, 100, lineweight) + '</div>' +
-        '<div class="big">' + (data.messages.length - 1) + ' von ' + Math.round(data.messages[data.messages.length - 1]) + ' Datenblöcken empfangen.<br>Letzter Datenblock wurde mit ' + data.time[data.time.length - 1] + ' ms zum vorherigen empfangen.</div>';
+        '<div class="big">' + (data.messages.length - 1) + ' von ' + Math.round(data.messages[data.messages.length - 1]) + ' Datenblöcken empfangen.<br>' + corruptdatablocks + ' Datenblöcke fehlerhaft.<br>Letzter Datenblock wurde mit ' + data.time[data.time.length - 1] + ' ms zum vorherigen empfangen.</div>';
 }
 
 function exportRawData() {

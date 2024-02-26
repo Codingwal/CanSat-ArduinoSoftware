@@ -124,8 +124,7 @@ void setup() {
 
   // Init SD (Speicher)
   if (!SD.begin(SD_CS_PIN)) {
-    Serial.println(ERROR_SD_CONNECT);
-    problem = true;
+    error(ERROR_SD_CONNECT);
   }
   {
     // Datei mit höchstem Wert als Namen finden und dann mit Wert + 1 als Namen eine Datei erstellen
@@ -143,8 +142,8 @@ void setup() {
   }
 
   // Init GPS
-  gpsSerial.begin(9600);
-  ss.begin(9600);
+  //gpsSerial.begin(9600);
+  //ss.begin(9600);
 
   // Erfolg-Tonabfolge, LED aus
   Serial.println(200);
@@ -214,20 +213,20 @@ void GPS() {
   float longitude;
   float altitude;
 
-  while (gpsSerial.available()) {
+  /*while (gpsSerial.available()) {
     if (gps.encode(gpsSerial.read())) {
       gps.f_get_position(&latitude, &longitude);
       altitude = gps.f_altitude();
     }
-  }
+    }
 
-  while (ss.available() > 0) {
+    while (ss.available() > 0) {
     gps.encode(ss.read());
     if (gps.location.isUpdated()) {
       latitude = gps.location.lat(), 3;
       longitude = gps.location.lng(), 3;
     }
-  }
+    }*/
 
   send(latitude);
   send(longitude);
@@ -245,6 +244,7 @@ void send(float val) {
 
   // Tatsächlich physisch Speichern, wäre ansonsten evtl. nur im Buffer was zu Fehlern führen kann
   file.flush();
+}
 
 void error(int errorCode) {
   // Fehler code zum Debuggen an den Laptop schicken

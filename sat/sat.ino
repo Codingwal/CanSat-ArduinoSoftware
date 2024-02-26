@@ -30,9 +30,11 @@
 
 #define FREQUENCY 433.0
 
+#define FAN_ACTIVATING_HEIGHT 100 // Ab welcher Höhe der Föhn in Betrieb genommen werden soll
+
 #define STARTALTITUDE 30 // Höhe vor dem Start vom Flugplatz
 
-#define FILEPATH "data.txt"
+#define FLOATSIZE 4 // sizeof(float)
 
 Adafruit_BMP280 bmp;
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
@@ -42,9 +44,8 @@ Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
 SoftwareSerial rf(LORA_RX_PIN, LORA_TX_PIN);
 RH_RF95 rf95(rf);
 
-float startaltitude; // Mit Luftdruck vom BMP280
 float sealevelhpa;
-float altitude;
+float bmp_altitude;
 
 bool fan = false;
 bool ejected = false;
@@ -78,7 +79,7 @@ void setup() {
   /*if (!bno.begin()) {
     Serial.println(502);
     problem = true;
-  }*/
+    }*/
   if (!rf95.init())
   {
     Serial.println(503);
@@ -91,7 +92,6 @@ void setup() {
 
   float pressure = bmp.readPressure();
   sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
-  startaltitude = calcAltitude(pressure);
 
   int counter = 0;
   while (SD.exists(String(counter))) {
@@ -132,21 +132,17 @@ void setup() {
   }
 }
 
-float height = 700; // Dient als Test, wird durchgehend runtergesetzt
 void loop() {
-  /*if (Serial.readString() == "getdata") {
-    transmitData();
-    }*/
+  send(9999990);
+  send(messages);
+  BMP();
+  BNO();
+  GPS();
 
-  if (height < 500) { // Beispielwert
+  float height = bmp_altitude - STARTALTITUDE;
+  if (height < FAN_ACTIVATING_HEIGHT) { // Beispielwert
     digitalWrite(FAN_PIN, HIGH); // Lüfter einschalten
-    fan = 1;
-  }
-
-  if (height > 0) { // Nur für Test-Zwecke
-    height = height - 200;
-  } else {
-    //file.close();
+    fan = true;
   }
 
   if (ejected) {
@@ -157,11 +153,6 @@ void loop() {
     }
   }
 
-  send(9999990);
-  send(messages);
-  BMP();
-  BNO();
-  GPS();
   int infos = (fan << 0) + (ejected << 1) + (landed << 2);
   send(infos);
   send(9999991);
@@ -171,7 +162,7 @@ void loop() {
 void BMP() {
   float pressure = bmp.readPressure();
 
-  altitude = calcAltitude(pressure);
+  bmp_altitude = calcAltitude(pressure);
 
   send(bmp.readTemperature()); // Temperatur senden
   send(pressure);
@@ -221,16 +212,10 @@ void GPS() {
 }
 
 void send(float val) {
-  uint8_t tosend[sizeof(float)];
-  memcpy(&tosend, &val, sizeof(float));
-  rf95.send(tosend, sizeof(float));
-
   file.println(val, DEC);
   file.flush();
-}
 
-void transmitData() {
-  while (file.available()) {
-    Serial.write(file.read());
-  }
+  uint8_t tosend[FLOATSIZE];
+  memcpy(&tosend, &val, FLOATSIZE);
+  rf95.send(tosend, FLOATSIZE);
 }

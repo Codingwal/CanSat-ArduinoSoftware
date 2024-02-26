@@ -1,5 +1,8 @@
 const startaltitude = 30;
 
+const datablockstart = 0xFFFFFF;
+const datablockend = 0xFFFFFE;
+
 let rawdatablock = '';
 let datablock = [];
 let bigwidth = (document.body.offsetWidth - 10) / 1 - 30;
@@ -81,13 +84,14 @@ async function readPort() {
                 rawdatablock += lastitem;
                 rawdata += lastitem;
                 datablock = rawdatablock.split('\r\n');
-                console.log(datablock[datablock.length - 1]);
-                if (datablock[14] == 9999991) {
+                // console.log(rawdatablock);
+                if (datablock[14] == datablockend) {
                     console.log(`Datenblock ${datablock[1]} empfangen!`);
                     rawdatablock = '';
+                    console.log(datablock[0]);
 
-                    if (datablock[0] == 9999990 &&
-                        datablock[14] == 9999991 &&
+                    if (datablock[0] == datablockstart &&
+                        datablock[14] == datablockend &&
                         dataBlockOK(datablock)) {
                         data.messages.push(datablock[1]);
 
@@ -126,8 +130,8 @@ async function readPort() {
                         console.log('Fehlerhafter Datenblock!');
                     }
                 }
-                if (lastitem == 9999990) { // Neuer Datenblock fängt an
-                    rawdatablock = '9999990\r\n';
+                if (lastitem == datablockstart) { // Neuer Datenblock fängt an
+                    rawdatablock = datablockstart + '\r\n';
                 }
                 if (datablock.length > 15) { // Bei zu langen Blöcken neu anfangen
                     rawdatablock = '';

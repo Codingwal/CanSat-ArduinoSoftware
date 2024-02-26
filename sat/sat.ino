@@ -41,8 +41,8 @@
 #define ERROR_SD_OPEN 505
 
 // Kontrollwerte vor und nach der Datenübertragung
-#define DATA_BLOCK_START 0xFFFFFFFF  // maximaler 32b Wert
-#define DATA_BLOCK_END 0xFFFFFFFE    // maximaler 32b Wert minus 1
+#define DATA_BLOCK_START 0xFFFFFF  // maximaler 32b Wert bzw. nur noch 6 F
+#define DATA_BLOCK_END 0xFFFFFE    // maximaler 32b Wert minus 1, bzw. nur noch 5 F und ein E
 
 #define FREQUENCY 433.0  // Datenübertragungsfrequenz (in MHz)
 
@@ -142,7 +142,7 @@ void setup() {
 
 void loop() {
 
-  // Nach dem Auswerfen Piepen (jedes mal Wechsel zwischen Ton und kein Ton, wird anhand der gesendeten Nachrichten bestimmt)
+  // Nach dem Auswerfen Piepen (jedes mal Wechsel zwischen Ton und kein Ton, wird anhand der gesendeten Nachrichten bestimmt :)
   if (ejected) {
     if (messageIndex % 2 == 0) {
       tone(SPEAKER_PIN, 1000);

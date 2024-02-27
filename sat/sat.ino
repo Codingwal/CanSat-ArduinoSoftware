@@ -7,9 +7,7 @@
 #include <RH_RF95.h>
 #include <SD.h>
 
-
-/*
-  SPI Pins Arduino Nano
+/* SPI Pins Arduino Nano
   CS 10
   MOSI 11
   MISO 12
@@ -48,6 +46,9 @@
 
 #define STARTALTITUDE 30  // Höhe vor dem Start vom Flugplatz
 
+#define TOLERANCE 5 // Toleranz in Metern, um Höhenunterschiede mit dem BMP zu messen
+#define FAN_STARTING_HEIGHT 100
+
 Adafruit_BMP280 bmp;
 Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
 //SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
@@ -57,7 +58,8 @@ SoftwareSerial rf(LORA_RX_PIN, LORA_TX_PIN);
 RH_RF95 rf95(rf);
 
 float sealevelhpa;
-float bmp_altitude;
+float bmp_altitude = STARTALTITUDE;
+float last_bmp_altitude = STARTALTITUDE;
 
 bool fan = false;
 bool ejected = false;
@@ -94,10 +96,11 @@ void setup() {
   float pressure = bmp.readPressure();
   sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
 
+
   // Init BNO (Inertialplatform)
   /*if (!bno.begin()) {
     error(ERROR_BNO);
-  }*/
+    }*/
 
   // Init RF95 (Funkmodul)
   if (!rf95.init()) {
@@ -141,6 +144,28 @@ void setup() {
 }
 
 void loop() {
+  // Sendet einen Datenblock, die Unterfunktionen senden die jeweiligen Werte selber
+  // Am Anfang und am Ende wird ein Kontrollwert gesendet
+  send(DATA_BLOCK_START);
+  send(messageIndex);
+  BMP();
+  BNO();
+  GPS();
+
+  if (last_bmp_altitude - TOLERANCE > bmp_altitude) { // Falls die Höhe fällt
+    ejected = true;
+  } else if (last_bmp_altitude - TOLERANCE < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
+    if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein
+      landed = true;
+    }
+  }
+
+  if (bmp_altitude < FAN_STARTING_HEIGHT) {
+    fan = true;
+    digitalWrite(FAN_PIN, LOW);
+  }
+
+  last_bmp_altitude = bmp_altitude;
 
   // Nach dem Auswerfen Piepen (jedes mal Wechsel zwischen Ton und kein Ton, wird anhand der gesendeten Nachrichten bestimmt :)
   if (ejected) {
@@ -151,13 +176,6 @@ void loop() {
     }
   }
 
-  // Sendet einen Datenblock, die Unterfunktionen senden die jeweiligen Werte selber
-  // Am Anfang und am Ende wird ein Kontrollwert gesendet
-  send(DATA_BLOCK_START);
-  send(messageIndex);
-  BMP();
-  BNO();
-  GPS();
   send((fan << 0) + (ejected << 1) + (landed << 2));  // Sendet alle Bools in einem Byte
   send(DATA_BLOCK_END);
 

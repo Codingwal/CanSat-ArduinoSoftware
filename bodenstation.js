@@ -86,57 +86,16 @@ async function readPort() {
                 rawdatablock += lastitem;
                 rawdata += lastitem;
                 datablock = rawdatablock.split('\r\n');
-                // console.log(rawdatablock);
                 if (datablock[14] == datablockend) {
                     console.log(`Datenblock ${datablock[1]} empfangen!`);
-                    rawdatablock = '';
-                    console.log(datablock[0]);
-
-                    if (datablock[0] == datablockstart &&
-                        datablock[14] == datablockend &&
-                        dataBlockOK(datablock)) {
-                        data.messages.push(datablock[1]);
-
-                        data.temperature.push(datablock[2] - calibration.temperature);
-                        data.pressure.push(datablock[3]);
-
-                        data.accelerationX.push(datablock[4] - calibration.accelerationX);
-                        data.accelerationY.push(datablock[5] - calibration.accelerationY);
-                        data.accelerationZ.push(datablock[6] - calibration.accelerationZ);
-
-                        data.rotationX.push(datablock[7]);
-                        data.rotationY.push(datablock[8]);
-                        data.rotationZ.push(datablock[9]);
-
-                        data.latitude.push(datablock[10]);
-                        data.longitude.push(datablock[11]);
-                        data.altitude.push(datablock[12]);
-
-                        let infos = datablock[13];
-                        data.fan.push(infos & 1);
-                        data.ejected.push((infos >> 1) & 1);
-                        data.landed.push((infos >> 2) & 1);
-
-                        if (timer != undefined) {
-                            data.time.push(Date.now() - timer);
-                        } else {
-                            data.time.push(0);
-                        }
-
-                        timer = Date.now();
-
-                        calcRelativePos(data);
-
-                        refreshScreen(data);
-                    } else {
-                        corruptdatablocks++
-                    }
+                    processDatablock(datablock);
                 }
                 if (lastitem == datablockstart) { // Neuer Datenblock fängt an
                     rawdatablock = datablockstart + '\r\n';
                 }
                 if (datablock.length > 15) { // Bei zu langen Blöcken neu anfangen
                     rawdatablock = '';
+                    corruptdatablocks++;
                 }
             }
         } catch (error) {
@@ -144,6 +103,48 @@ async function readPort() {
         } finally {
             reader.releaseLock();
         }
+    }
+}
+
+function processDatablock(datablock) {
+    if (datablock[0] == datablockstart &&
+        datablock[14] == datablockend &&
+        dataBlockOK(datablock)) {
+        data.messages.push(datablock[1]);
+
+        data.temperature.push(datablock[2] - calibration.temperature);
+        data.pressure.push(datablock[3]);
+
+        data.accelerationX.push(datablock[4] - calibration.accelerationX);
+        data.accelerationY.push(datablock[5] - calibration.accelerationY);
+        data.accelerationZ.push(datablock[6] - calibration.accelerationZ);
+
+        data.rotationX.push(datablock[7]);
+        data.rotationY.push(datablock[8]);
+        data.rotationZ.push(datablock[9]);
+
+        data.latitude.push(datablock[10]);
+        data.longitude.push(datablock[11]);
+        data.altitude.push(datablock[12]);
+
+        let infos = datablock[13];
+        data.fan.push(infos & 1);
+        data.ejected.push((infos >> 1) & 1);
+        data.landed.push((infos >> 2) & 1);
+
+        if (timer != undefined) {
+            data.time.push(Date.now() - timer);
+        } else {
+            data.time.push(0);
+        }
+
+        timer = Date.now();
+
+        calcRelativePos(data);
+
+        refreshScreen(data);
+    } else {
+        corruptdatablocks++
     }
 }
 
@@ -256,7 +257,19 @@ function exportData() {
 }
 
 let sdraw = '';
+let somethingReceived = false; // Es muss etwas empfangen worden sein, bevor lastadd eine Rolle spielt
+let lastadd = Date.now();
+let rawSDdataProceded = false;
 async function importFromSD() {
+    setInterval(() => {
+        console.log('Interval');
+        if (importCompleted()) {
+            if (!rawSDdataProceded) {
+                processSDRawData(sdraw);
+            }
+        }
+    }, 1000);
+
     port = await navigator.serial.requestPort();
     await port.open({ baudRate: 9600 });
 
@@ -286,6 +299,7 @@ async function importFromSD() {
                     console.log('Port wird freigeschaltet...');
 
                     const decoder = new TextDecoder();
+
                     while (true) {
                         const { value, done } = await reader.read();
                         if (done) {
@@ -293,6 +307,12 @@ async function importFromSD() {
                             break;
                         }
                         sdraw += decoder.decode(value);
+                        if (!somethingReceived) {
+                            if (sdraw.length > 0) {
+                                somethingReceived = true;
+                            }
+                        }
+                        lastadd = Date.now();
                     }
                 }
             }
@@ -304,60 +324,32 @@ async function importFromSD() {
     }
 }
 
-function processRawData(rawdata) {
-    console.log('Roh-Daten werden verarbeitet...');
-    let newdata = rawdata.split('\r\n');
-    //console.log(newdata);
-
-    newdata.forEach(item => {
-        datablock.push(item);
-
-        if (datablock[14] == 9999991) {
-            //console.log(`Datenblock ${newdata[1]} empfangen!`);
-
-            if (datablock[0] == 9999990 &&
-                datablock[14] == 9999991 &&
-                dataBlockOK(datablock)) {
-                data.messages.push(datablock[1]);
-
-                data.temperature.push(datablock[2] - calibration.temperature);
-                data.pressure.push(datablock[3]);
-
-                data.accelerationX.push(datablock[4] - calibration.accelerationX);
-                data.accelerationY.push(datablock[5] - calibration.accelerationY);
-                data.accelerationZ.push(datablock[6] - calibration.accelerationZ);
-
-                data.rotationX.push(datablock[7]);
-                data.rotationY.push(datablock[8]);
-                data.rotationZ.push(datablock[9]);
-
-                data.latitude.push(datablock[10]);
-                data.longitude.push(datablock[11]);
-                data.altitude.push(datablock[12]);
-
-                let infos = datablock[13];
-                data.fan.push(infos & 1);
-                data.ejected.push((infos >> 1) & 1);
-                data.landed.push((infos >> 2) & 1);
-
-                if (timer != undefined) {
-                    data.time.push(Date.now() - timer);
-                } else {
-                    data.time.push(0);
-                }
-
-                timer = Date.now();
-
-                calcRelativePos(data);
-
-                refreshScreen(data);
-            } else {
-                console.log('Fehlerhafter Datenblock!');
-            }
+function importCompleted() {
+    if (somethingReceived) {
+        if (lastadd + 1000 < Date.now()) { // Falls lange keine neuen Daten importiert wurden
+            return true;
         }
+    }
+    return false;
+}
 
-        if (item == 9999990) {
-            datablock = [9999990];
+function processSDRawData(rawdata) {
+    rawSDdataProceded = true; // um erneutes Ausführen zu vermeiden
+    console.log('Roh-Daten werden verarbeitet...');
+    let bigdatablock = rawdata.split('\r\n');
+
+    bigdatablock.forEach(item => {
+        datablock.push(item);
+        if (datablock[14] == datablockend) {
+            console.log(`Datenblock ${datablock[1]} empfangen!`);
+            processDatablock(datablock);
+        }
+        if (item == datablockstart) { // Neuer Datenblock fängt an
+            datablock = [datablockstart];
+        }
+        if (datablock.length > 15) { // Bei zu langen Blöcken neu anfangen
+            datablock = [];
+            corruptdatablocks++;
         }
     });
 }

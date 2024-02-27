@@ -1,3 +1,5 @@
+// Delta T in der Datei speichern!
+
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
 #include <Adafruit_BNO055.h>

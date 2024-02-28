@@ -2,7 +2,7 @@
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
-// #include <Adafruit_BNO055.h>
+#include <Adafruit_BNO055.h>
 #include <SoftwareSerial.h>
 //#include <TinyGPS.h>
 //#include <TinyGPSPlus.h>
@@ -53,7 +53,7 @@
 #define BMP_ALTITUDES_SIZE 8 // Wie viele letzte Temperaturen gespeichert werden sollen
 
 Adafruit_BMP280 bmp;
-// Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
+Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
 //SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
 //SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
 //TinyGPSPlus gps;
@@ -76,10 +76,11 @@ void setup() {
   Serial.begin(9600);
   Serial.println(100);
 
-  bool problem = false;
-
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
+
+  pinMode(FAN_PIN, OUTPUT);
+  digitalWrite(FAN_PIN, LOW);
 
   /*
     pinMode(GPS_RX_PIN, OUTPUT); // GPS-Pin auf Output setzen
@@ -88,16 +89,15 @@ void setup() {
     digitalWrite(GPS_TX_PIN, LOW); // Spannung auf GPS-Pin ausschalten
   */
 
-  pinMode(FAN_PIN, OUTPUT);
-  digitalWrite(FAN_PIN, LOW);
-
   // Init BMP (Luftdruck & Temperatur)
   if (!bmp.begin(BMP280_I2C_ADDRESS)) {
     error(ERROR_BMP);
   }
 
-  float pressure = bmp.readPressure();
-  sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
+  {
+    float pressure = bmp.readPressure();
+    sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
+  }
 
   // Init BNO (Inertialplatform)
   /*if (!bno.begin()) {
@@ -117,11 +117,11 @@ void setup() {
   {
     // Datei mit höchstem Wert als Namen finden und dann mit Wert + 1 als Namen eine Datei erstellen
     // So muss nicht nach jedem Test die SD Karte geleert werden, sondern die Dateien sind chronologisch sortiert
-    int counter = 0;
-    while (SD.exists(String(counter))) {
-      counter++;
+    int filecounter = 0;
+    while (SD.exists(String(filecounter))) {
+      filecounter++;
     }
-    file = SD.open(String(counter), FILE_WRITE);
+    file = SD.open(String(filecounter), FILE_WRITE);
     if (file) {
       file.println("");  // Es muss irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
     } else {
@@ -200,7 +200,7 @@ float calcAltitude(float pressure) {
 }
 
 void BNO() {
-  /*sensors_event_t accelerometer, gyroscope;
+  sensors_event_t accelerometer, gyroscope;
   bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL);  // Acceleration - Gravity
   send(accelerometer.acceleration.x);
   send(accelerometer.acceleration.y);
@@ -209,7 +209,7 @@ void BNO() {
   bno.getEvent(&gyroscope, Adafruit_BNO055::VECTOR_EULER);
   send(gyroscope.gyro.x);
   send(gyroscope.gyro.y);
-  send(gyroscope.gyro.z);*/
+  send(gyroscope.gyro.z);
 }
 
 void GPS() {
@@ -245,6 +245,8 @@ void send(float val) {
 
   // Wert als eine Zeile in die Datei schreiben
   file.println(val, DEC);
+  //file.write(val);
+  //file.write(F("\r\n"));
 
   // Tatsächlich physisch Speichern, wäre ansonsten evtl. nur im Buffer was zu Fehlern führen kann
   file.flush();

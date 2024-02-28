@@ -217,9 +217,9 @@ async function calcRelativePos(data, recalc = false) {
 async function refreshScreen(data) {
     document.body.innerHTML =
         '<div class="big"><a onclick="exportData()">Daten exportieren</a> | <a onclick="exportRawData()">Roh-Daten exportieren</a></div>' +
-        '<div class="medium">Temperatur [°C]: <br>' + generateSVGChart(data.temperature, mediumwidth, 100, lineweight) + '</div>' +
-        '<div class="medium">Druck [Pa]: <br>' + generateSVGChart(data.pressure, mediumwidth, 100, lineweight) + '</div>' +
-        '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(bmp_altitude, bigwidth, 100, lineweight) + '</div>' +
+        '<div class="medium">Temperatur [°C]: <br>' + generateSVGChart(data.temperature, mediumwidth, 200, lineweight) + '</div>' +
+        '<div class="medium">Druck [Pa]: <br>' + generateSVGChart(data.pressure, mediumwidth, 200, lineweight) + '</div>' +
+        '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(bmp_altitude, bigwidth, 300, lineweight) + '</div>' +
         '<div class="small">Höhe (Luftdruck): <br>' + bmp_height.toFixed(3) + 'm</div>' +
         '<div class="small">Verschiebung (Beschleunigung): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +
         '<div class="small">Verschiebung (GPS): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +

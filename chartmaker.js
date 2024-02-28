@@ -29,7 +29,7 @@ function generateSVGChart(values, width, height, weight = 5, gap = 100 / 3, grad
     for (let i = 0; i <= height / gap; i++) {
         console.log();
         svg += `<path style="z-index: -1" d="M0 ${i * gap} L ${width} ${i * gap}" stroke-width="${i == 0 || i == height / gap ? gradweight * 2 : gradweight}" stroke="#808080"></path>`;
-        svg += `<text x="5" font-size="12" y="${i == 0 ? '12' : i * gap}">${(Number(minValue) + range / (height / gap) * i).toFixed(3)}</text>`;
+        svg += `<text x="5" font-size="12" y="${i == 0 ? '12' : i * gap}">${(Number(maxValue) - range / (height / gap) * i).toFixed(3)}</text>`;
     }
 
     // svg += `<text x="5" font-size="12" y="12">${Number(maxValue).toFixed(3)}</text>`;

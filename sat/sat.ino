@@ -2,7 +2,7 @@
 
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
-// #include <Adafruit_BNO055.h>
+#include <Adafruit_BNO055.h>
 #include <SoftwareSerial.h>
 //#include <TinyGPS.h>
 //#include <TinyGPSPlus.h>
@@ -53,7 +53,7 @@
 #define BMP_ALTITUDES_SIZE 8 // Wie viele letzte Temperaturen gespeichert werden sollen
 
 Adafruit_BMP280 bmp;
-// Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
+Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
 //SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
 //SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
 //TinyGPSPlus gps;
@@ -200,7 +200,7 @@ float calcAltitude(float pressure) {
 }
 
 void BNO() {
-  /*sensors_event_t accelerometer, gyroscope;
+  sensors_event_t accelerometer, gyroscope;
   bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL);  // Acceleration - Gravity
   send(accelerometer.acceleration.x);
   send(accelerometer.acceleration.y);
@@ -209,7 +209,7 @@ void BNO() {
   bno.getEvent(&gyroscope, Adafruit_BNO055::VECTOR_EULER);
   send(gyroscope.gyro.x);
   send(gyroscope.gyro.y);
-  send(gyroscope.gyro.z);*/
+  send(gyroscope.gyro.z);
 }
 
 void GPS() {

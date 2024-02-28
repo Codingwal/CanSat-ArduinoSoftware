@@ -50,6 +50,7 @@
 
 #define TOLERANCE 5 // Toleranz in Metern, um Höhenunterschiede mit dem BMP zu messen
 #define FAN_STARTING_HEIGHT 100
+#define BMP_ALTITUDES_SIZE 8 // Wie viele letzte Temperaturen gespeichert werden sollen
 
 Adafruit_BMP280 bmp;
 Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
@@ -61,13 +62,13 @@ RH_RF95 rf95(rf);
 
 float sealevelhpa;
 float bmp_altitude = STARTALTITUDE;
-float last_bmp_altitude = STARTALTITUDE;
+float bmp_altitudes[BMP_ALTITUDES_SIZE];
 
 bool fan = false;
 bool ejected = false;
 bool landed = false;
 
-int messageIndex = 0;
+int counter = 0;
 
 File file;
 
@@ -149,14 +150,14 @@ void loop() {
   // Sendet einen Datenblock, die Unterfunktionen senden die jeweiligen Werte selber
   // Am Anfang und am Ende wird ein Kontrollwert gesendet
   send(DATA_BLOCK_START);
-  send(messageIndex);
+  send(counter);
   BMP();
   BNO();
   GPS();
 
-  if (last_bmp_altitude - TOLERANCE > bmp_altitude) { // Falls die Höhe fällt
+  if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE > bmp_altitude) { // Falls die Höhe fällt
     ejected = true;
-  } else if (last_bmp_altitude - TOLERANCE < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
+  } else if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
     if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein
       landed = true;
     }
@@ -167,11 +168,11 @@ void loop() {
     digitalWrite(FAN_PIN, LOW);
   }
 
-  last_bmp_altitude = bmp_altitude;
+  bmp_altitudes[counter % BMP_ALTITUDES_SIZE] = bmp_altitude;
 
   // Nach dem Auswerfen Piepen (jedes mal Wechsel zwischen Ton und kein Ton, wird anhand der gesendeten Nachrichten bestimmt :)
   if (ejected) {
-    if (messageIndex % 2 == 0) {
+    if (counter % 2 == 0) {
       tone(SPEAKER_PIN, 1000);
     } else {
       noTone(SPEAKER_PIN);
@@ -181,7 +182,7 @@ void loop() {
   send((fan << 0) + (ejected << 1) + (landed << 2));  // Sendet alle Bools in einem Byte
   send(DATA_BLOCK_END);
 
-  messageIndex++;
+  counter++;
 }
 
 void BMP() {

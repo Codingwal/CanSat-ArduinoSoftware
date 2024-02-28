@@ -155,11 +155,13 @@ void loop() {
   BNO();
   GPS();
 
-  if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE > bmp_altitude) { // Falls die Höhe fällt
-    ejected = true;
-  } else if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
-    if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein
-      landed = true;
+  if (counter > BMP_ALTITUDES_SIZE) { // Falls der Zähler über der Länge an gespeicherten Höhenmetern ist, weiter machen, sonst würde der Satellit schon fliegen, weil die Werte noch 0.00 sind, und dem entsprechend der Satellit schon hochgeflogen sein muss
+    if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE > bmp_altitude) { // Falls die Höhe fällt
+      ejected = true;
+    } else if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
+      if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein
+        landed = true;
+      }
     }
   }
 

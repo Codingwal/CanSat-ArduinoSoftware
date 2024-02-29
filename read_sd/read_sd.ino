@@ -1,9 +1,12 @@
 #include <SPI.h>
 #include <SD.h>
+//#include <SdFat.h>
 
 #define SD_CS_PIN 10
 
 File file;
+//SdFat32 SD;
+//File32 file;
 
 void setup() {
   Serial.begin(9600);

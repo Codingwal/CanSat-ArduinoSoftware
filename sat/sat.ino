@@ -7,12 +7,7 @@
 //#include <TinyGPS.h>
 //#include <TinyGPSPlus.h>
 #include <RH_RF95.h>
-//#include <SD.h>
-//#include "SdFat.h"
-//#include "SdFatUtil.h"
-//#include <utility/SdFatUtil.h>
 #include <SdFat.h>
-//#include <SdFatutil.h>
 
 /* SPI Pins Arduino Nano
   CS 10

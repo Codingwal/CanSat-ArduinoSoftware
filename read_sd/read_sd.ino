@@ -2,7 +2,6 @@
 #include <SD.h>
 
 #define SD_CS_PIN 10
-#define FILEPATH "data.txt"
 
 File file;
 

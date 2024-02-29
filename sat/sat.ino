@@ -7,7 +7,12 @@
 //#include <TinyGPS.h>
 //#include <TinyGPSPlus.h>
 #include <RH_RF95.h>
-#include <SD.h>
+//#include <SD.h>
+//#include "SdFat.h"
+//#include "SdFatUtil.h"
+//#include <utility/SdFatUtil.h>
+#include <SdFat.h>
+//#include <SdFatutil.h>
 
 /* SPI Pins Arduino Nano
   CS 10
@@ -70,7 +75,10 @@ bool landed = false;
 
 int counter = 0;
 
-File file;
+// File file;
+//SdFat SD;
+SdFat32 SD;
+File32 file;
 
 void setup() {
   Serial.begin(9600);
@@ -125,17 +133,17 @@ void setup() {
     }
     file = SD.open(String(filecounter), FILE_WRITE);
     if (file) {
-      // file.println(""); // Es muss irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
+      file.println(""); // Es muss irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
     } else {
       error(ERROR_SD_OPEN);
     }
-  }
+  }//
   // Init GPS
   //gpsSerial.begin(9600);
   //ss.begin(9600);
 
   {
-    // Erfolg-Tonabfolge, LED aus
+    // Erfolg-Tonabfolge, LED an
     Serial.println(200);
     tone(SPEAKER_PIN, 200);
     delay(100);

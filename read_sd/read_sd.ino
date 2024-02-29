@@ -18,9 +18,8 @@ void setup() {
   Serial.println("Files: ");
   int counter = 0;
   while (SD.exists(String(counter))) {
-    /*Serial.print(counter);
-    Serial.print(" ");*/
-    delay(10);
+    Serial.print(counter);
+    Serial.print(" ");
     counter++;
   }
   Serial.print("Select file to open: 0-");

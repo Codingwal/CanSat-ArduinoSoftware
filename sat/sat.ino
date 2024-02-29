@@ -9,7 +9,7 @@
 #include <RH_RF95.h>
 #include <SdFat.h>
 
-/* SPI Pins Arduino Nano
+/*SPI Pins Arduino Nano
   CS 10
   MOSI 11
   MISO 12
@@ -17,7 +17,6 @@
   https://www.arduino.cc/reference/en/language/functions/communication/spi/
   https://funduino.de/nr-28-das-sd-karten-modul
 */
-
 
 // I2C Adressen
 #define BMP280_I2C_ADDRESS 0x76
@@ -53,16 +52,16 @@
 #define BMP_ALTITUDES_SIZE 8 // Wie viele letzte Temperaturen gespeichert werden sollen
 
 Adafruit_BMP280 bmp;
-//Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
-//SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
-//SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
-//TinyGPSPlus gps;
+Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
+// SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
+// SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
+// TinyGPSPlus gps;
 SoftwareSerial rf(LORA_RX_PIN, LORA_TX_PIN);
 RH_RF95 rf95(rf);
 
 float sealevelhpa;
-float bmp_altitude = STARTALTITUDE;
-float bmp_altitudes[BMP_ALTITUDES_SIZE];
+short bmp_altitude = STARTALTITUDE;
+short bmp_altitudes[BMP_ALTITUDES_SIZE];
 
 bool fan = false;
 bool ejected = false;
@@ -70,14 +69,12 @@ bool landed = false;
 
 int counter = 0;
 
-// File file;
-//SdFat SD;
 SdFat32 SD;
 File32 file;
 
 void setup() {
   Serial.begin(9600);
-  Serial.println(100);
+  // Serial.println(100);
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
@@ -93,13 +90,9 @@ void setup() {
   */
 
   {
-    // Init BMP (Luftdruck & Temperatur)
-    if (!bmp.begin(BMP280_I2C_ADDRESS)) {
+    if (!bmp.begin(BMP280_I2C_ADDRESS)) { // Init BMP (Luftdruck & Temperatur)
       error(ERROR_BMP);
     }
-  }
-
-  {
     float pressure = bmp.readPressure();
     sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
   }
@@ -107,16 +100,18 @@ void setup() {
   // Init BNO (Inertialplatform)
   /*if (!bno.begin()) {
     error(ERROR_BNO);
-    }*/
+  }*/
   {
-    // Init RF95 (Funkmodul)
-    if (!rf95.init()) {
+    if (!rf95.init()) { // RF95 (Funkmodul) initialisieren
       error(ERROR_RF95);
     }
     rf95.setFrequency(FREQUENCY);
   }
-  // Init SD (Speicher)
-  if (!SD.begin(SD_CS_PIN)) {
+
+  // gpsSerial.begin(9600); // Init GPS
+  // ss.begin(9600);
+
+  if (!SD.begin(SD_CS_PIN)) { // Init SD (Speicher)
     error(ERROR_SD_CONNECT);
   }
   {
@@ -132,21 +127,10 @@ void setup() {
     } else {
       error(ERROR_SD_OPEN);
     }
-  }//
-  // Init GPS
-  //gpsSerial.begin(9600);
-  //ss.begin(9600);
+  }
 
-  {
-    // Erfolg-Tonabfolge, LED an
+  { // Erfolg-Tonabfolge, LED an
     Serial.println(200);
-    tone(SPEAKER_PIN, 200);
-    delay(100);
-    tone(SPEAKER_PIN, 400);
-    delay(100);
-    tone(SPEAKER_PIN, 600);
-    delay(100);
-    noTone(SPEAKER_PIN);
     digitalWrite(LED_PIN, LOW);
   }
 }
@@ -164,30 +148,31 @@ void loop() {
     if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE > bmp_altitude) { // Falls die Höhe fällt
       ejected = true;
     } else if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
-      if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein
+      if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein :)
         landed = true;
       }
     }
   }
 
-  if (bmp_altitude < FAN_STARTING_HEIGHT) {
-    fan = true;
-    digitalWrite(FAN_PIN, LOW);
+  // Falls ausgeworfen, piept der akustische Signalgeber
+  if (ejected) {
+    tone(SPEAKER_PIN, 1000, 500); // 0.5 Sekunden den Ton abspielen
   }
 
-  bmp_altitudes[counter % BMP_ALTITUDES_SIZE] = bmp_altitude;
+  if (bmp_altitude < FAN_STARTING_HEIGHT) {
+    fan = true;
+    digitalWrite(FAN_PIN, HIGH);
+  }
 
-  // Nach dem Auswerfen Piepen (jedes mal Wechsel zwischen Ton und kein Ton, wird anhand der gesendeten Nachrichten bestimmt :)
-  if (ejected) {
-    if (counter % 2 == 0) {
-      tone(SPEAKER_PIN, 1000);
-    } else {
-      noTone(SPEAKER_PIN);
-    }
+  // Falls geladet, Lüfter ausschalten
+  if (landed) {
+    digitalWrite(FAN_PIN, LOW);
   }
 
   send((fan << 0) + (ejected << 1) + (landed << 2));  // Sendet alle Bools in einem Byte
   send(DATA_BLOCK_END);
+
+  bmp_altitudes[counter % BMP_ALTITUDES_SIZE] = bmp_altitude; // Aktueller Höhenmeter-Wert speichern
 
   counter++;
 }
@@ -229,9 +214,9 @@ void GPS() {
       gps.f_get_position(&latitude, &longitude);
       altitude = gps.f_altitude();
     }
-    }
+    }*/
 
-    while (ss.available() > 0) {
+  /*while (ss.available() > 0) {
     gps.encode(ss.read());
     if (gps.location.isUpdated()) {
       latitude = gps.location.lat(), 3;
@@ -246,31 +231,26 @@ void GPS() {
 
 void send(float val) {
   {
-    // Ändert den Typ von float zu uint8_t[], ohne tatsächlich Bits zu modifizieren
-    uint8_t tosend[sizeof(float)];
+    uint8_t tosend[sizeof(float)]; // Ändert den Typ von float zu uint8_t[], ohne tatsächlich Bits zu modifizieren
     memcpy(&tosend, &val, sizeof(float));
     rf95.send(tosend, sizeof(float));
   }
-
   {
     file.println(val, DEC);
-    // Tatsächlich physisch Speichern, wäre ansonsten evtl. nur im Buffer was zu Fehlern führen kann
-    file.flush();
+    file.flush(); // Tatsächlich physisch Speichern, wäre ansonsten evtl. nur im Buffer, was zu Fehlern führen kann :(
   }
 }
 
 void error(int errorCode) {
-  // Fehler code zum Debuggen an den Laptop schicken
-  Serial.println(errorCode);
+  Serial.println(errorCode); // Fehler code zum Debuggen an den Laptop schicken
 
   // Dauerhaftes Fehler-Piepen und blinkende LED
   byte countdown = 60; // 60 Sekunden = 1 Minute
   while (countdown > 0) {
     digitalWrite(LED_PIN, LOW);
-    tone(SPEAKER_PIN, 1000);
+    tone(SPEAKER_PIN, 1000, 500);
     delay(500);
     digitalWrite(LED_PIN, HIGH);
-    noTone(SPEAKER_PIN);
     delay(500);
 
     countdown--;

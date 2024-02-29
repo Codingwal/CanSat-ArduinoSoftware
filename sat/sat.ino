@@ -53,7 +53,7 @@
 #define BMP_ALTITUDES_SIZE 8 // Wie viele letzte Temperaturen gespeichert werden sollen
 
 Adafruit_BMP280 bmp;
-Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
+//Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
 //SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
 //SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
 //TinyGPSPlus gps;
@@ -89,9 +89,11 @@ void setup() {
     digitalWrite(GPS_TX_PIN, LOW); // Spannung auf GPS-Pin ausschalten
   */
 
-  // Init BMP (Luftdruck & Temperatur)
-  if (!bmp.begin(BMP280_I2C_ADDRESS)) {
-    error(ERROR_BMP);
+  {
+    // Init BMP (Luftdruck & Temperatur)
+    if (!bmp.begin(BMP280_I2C_ADDRESS)) {
+      error(ERROR_BMP);
+    }
   }
 
   {
@@ -103,13 +105,13 @@ void setup() {
   /*if (!bno.begin()) {
     error(ERROR_BNO);
     }*/
-
-  // Init RF95 (Funkmodul)
-  if (!rf95.init()) {
-    error(ERROR_RF95);
+  {
+    // Init RF95 (Funkmodul)
+    if (!rf95.init()) {
+      error(ERROR_RF95);
+    }
+    rf95.setFrequency(FREQUENCY);
   }
-  rf95.setFrequency(FREQUENCY);
-
   // Init SD (Speicher)
   if (!SD.begin(SD_CS_PIN)) {
     error(ERROR_SD_CONNECT);
@@ -123,7 +125,7 @@ void setup() {
     }
     file = SD.open(String(filecounter), FILE_WRITE);
     if (file) {
-      file.println("");  // Es muss irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
+      // file.println(""); // Es muss irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
     } else {
       error(ERROR_SD_OPEN);
     }
@@ -132,16 +134,18 @@ void setup() {
   //gpsSerial.begin(9600);
   //ss.begin(9600);
 
-  // Erfolg-Tonabfolge, LED aus
-  Serial.println(200);
-  tone(SPEAKER_PIN, 200);
-  delay(100);
-  tone(SPEAKER_PIN, 400);
-  delay(100);
-  tone(SPEAKER_PIN, 600);
-  delay(100);
-  noTone(SPEAKER_PIN);
-  digitalWrite(LED_PIN, LOW);
+  {
+    // Erfolg-Tonabfolge, LED aus
+    Serial.println(200);
+    tone(SPEAKER_PIN, 200);
+    delay(100);
+    tone(SPEAKER_PIN, 400);
+    delay(100);
+    tone(SPEAKER_PIN, 600);
+    delay(100);
+    noTone(SPEAKER_PIN);
+    digitalWrite(LED_PIN, LOW);
+  }
 }
 
 void loop() {
@@ -201,12 +205,12 @@ float calcAltitude(float pressure) {
 
 void BNO() {
   sensors_event_t accelerometer, gyroscope;
-  bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL);  // Acceleration - Gravity
+  //bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL);  // Acceleration - Gravity
   send(accelerometer.acceleration.x);
   send(accelerometer.acceleration.y);
   send(accelerometer.acceleration.z);
 
-  bno.getEvent(&gyroscope, Adafruit_BNO055::VECTOR_EULER);
+  //bno.getEvent(&gyroscope, Adafruit_BNO055::VECTOR_EULER);
   send(gyroscope.gyro.x);
   send(gyroscope.gyro.y);
   send(gyroscope.gyro.z);
@@ -238,18 +242,18 @@ void GPS() {
 }
 
 void send(float val) {
-  // Ändert den Typ von float zu uint8_t[], ohne tatsächlich Bits zu modifizieren
-  uint8_t tosend[sizeof(float)];
-  memcpy(&tosend, &val, sizeof(float));
-  rf95.send(tosend, sizeof(float));
+  {
+    // Ändert den Typ von float zu uint8_t[], ohne tatsächlich Bits zu modifizieren
+    uint8_t tosend[sizeof(float)];
+    memcpy(&tosend, &val, sizeof(float));
+    rf95.send(tosend, sizeof(float));
+  }
 
-  // Wert als eine Zeile in die Datei schreiben
-  file.println(val, DEC);
-  //file.write(val);
-  //file.write(F("\r\n"));
-
-  // Tatsächlich physisch Speichern, wäre ansonsten evtl. nur im Buffer was zu Fehlern führen kann
-  file.flush();
+  {
+    file.println(val, DEC);
+    // Tatsächlich physisch Speichern, wäre ansonsten evtl. nur im Buffer was zu Fehlern führen kann
+    file.flush();
+  }
 }
 
 void error(int errorCode) {
@@ -257,12 +261,15 @@ void error(int errorCode) {
   Serial.println(errorCode);
 
   // Dauerhaftes Fehler-Piepen und blinkende LED
-  while (true) {
+  byte countdown = 60; // 60 Sekunden = 1 Minute
+  while (countdown > 0) {
     digitalWrite(LED_PIN, LOW);
     tone(SPEAKER_PIN, 1000);
     delay(500);
     digitalWrite(LED_PIN, HIGH);
     noTone(SPEAKER_PIN);
     delay(500);
+
+    countdown--;
   }
 }

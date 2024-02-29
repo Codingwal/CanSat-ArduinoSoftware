@@ -89,10 +89,10 @@ void setup() {
     digitalWrite(GPS_TX_PIN, LOW); // Spannung auf GPS-Pin ausschalten
   */
 
+  if (!bmp.begin(BMP280_I2C_ADDRESS)) { // Init BMP (Luftdruck & Temperatur)
+    error(ERROR_BMP);
+  }
   {
-    if (!bmp.begin(BMP280_I2C_ADDRESS)) { // Init BMP (Luftdruck & Temperatur)
-      error(ERROR_BMP);
-    }
     float pressure = bmp.readPressure();
     sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
   }
@@ -100,13 +100,11 @@ void setup() {
   // Init BNO (Inertialplatform)
   /*if (!bno.begin()) {
     error(ERROR_BNO);
-  }*/
-  {
-    if (!rf95.init()) { // RF95 (Funkmodul) initialisieren
-      error(ERROR_RF95);
-    }
-    rf95.setFrequency(FREQUENCY);
+    }*/
+  if (!rf95.init()) { // RF95 (Funkmodul) initialisieren
+    error(ERROR_RF95);
   }
+  rf95.setFrequency(FREQUENCY);
 
   // gpsSerial.begin(9600); // Init GPS
   // ss.begin(9600);
@@ -129,9 +127,18 @@ void setup() {
     }
   }
 
-  { // Erfolg-Tonabfolge, LED an
+  {
     Serial.println(200);
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(LED_PIN, LOW); // LED an
+
+    // Nur bei genügend Speicher einbauen, braucht ganze 2%!
+    /*  tone(SPEAKER_PIN, 200);
+        delay(100);
+        tone(SPEAKER_PIN, 400);
+        delay(100);
+        tone(SPEAKER_PIN, 600);
+        delay(100);
+        noTone(SPEAKER_PIN);*/
   }
 }
 
@@ -140,16 +147,63 @@ void loop() {
   // Am Anfang und am Ende wird ein Kontrollwert gesendet
   send(DATA_BLOCK_START);
   send(counter);
-  BMP();
-  BNO();
-  GPS();
 
-  if (counter > BMP_ALTITUDES_SIZE) { // Falls der Zähler über der Länge an gespeicherten Höhenmetern ist, weiter machen, sonst würde der Satellit schon fliegen, weil die Werte noch 0.00 sind, und dem entsprechend der Satellit schon hochgeflogen sein muss
-    if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE > bmp_altitude) { // Falls die Höhe fällt
-      ejected = true;
-    } else if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
-      if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein :)
-        landed = true;
+  { // BMP
+    float pressure = bmp.readPressure();
+
+    bmp_altitude = 44300 * (1 - (pow(pressure / sealevelhpa, 0.1903)));
+
+    send(bmp.readTemperature());  // Temperatur senden
+    send(pressure);
+  }
+
+  { // BNO
+    sensors_event_t accelerometer, gyroscope;
+    //bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL);  // Acceleration - Gravity
+    send(accelerometer.acceleration.x);
+    send(accelerometer.acceleration.y);
+    send(accelerometer.acceleration.z);
+
+    //bno.getEvent(&gyroscope, Adafruit_BNO055::VECTOR_EULER);
+    send(gyroscope.gyro.x);
+    send(gyroscope.gyro.y);
+    send(gyroscope.gyro.z);
+  }
+
+  { // GPS
+    float latitude;
+    float longitude;
+    float altitude;
+
+    /*while (gpsSerial.available()) {
+      if (gps.encode(gpsSerial.read())) {
+        gps.f_get_position(&latitude, &longitude);
+        altitude = gps.f_altitude();
+      }
+      }*/
+
+    /*while (ss.available() > 0) {
+      gps.encode(ss.read());
+      if (gps.location.isUpdated()) {
+        latitude = gps.location.lat(), 3;
+        longitude = gps.location.lng(), 3;
+      }
+      }*/
+
+    send(latitude);
+    send(longitude);
+    send(altitude);
+  }
+
+  {
+    short x = bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE;
+    if (counter > BMP_ALTITUDES_SIZE) { // Falls der Zähler über der Länge an gespeicherten Höhenmetern ist, weiter machen, sonst würde der Satellit schon fliegen, weil die Werte noch 0.00 sind, und dem entsprechend der Satellit schon hochgeflogen sein muss
+      if (x > bmp_altitude) { // Falls die Höhe fällt
+        ejected = true;
+      } else if (x < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
+        if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein :)
+          landed = true;
+        }
       }
     }
   }
@@ -175,58 +229,6 @@ void loop() {
   bmp_altitudes[counter % BMP_ALTITUDES_SIZE] = bmp_altitude; // Aktueller Höhenmeter-Wert speichern
 
   counter++;
-}
-
-void BMP() {
-  float pressure = bmp.readPressure();
-
-  bmp_altitude = calcAltitude(pressure);
-
-  send(bmp.readTemperature());  // Temperatur senden
-  send(pressure);
-}
-
-float calcAltitude(float pressure) {
-  // https://github.com/adafruit/Adafruit_BMP280_Library/blob/master/Adafruit_BMP280.cpp [Zeile 321] oder im Heft Lernen mit ARDUINO!
-  return 44300 * (1 - (pow(pressure / sealevelhpa, 0.1903)));
-}
-
-void BNO() {
-  sensors_event_t accelerometer, gyroscope;
-  //bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL);  // Acceleration - Gravity
-  send(accelerometer.acceleration.x);
-  send(accelerometer.acceleration.y);
-  send(accelerometer.acceleration.z);
-
-  //bno.getEvent(&gyroscope, Adafruit_BNO055::VECTOR_EULER);
-  send(gyroscope.gyro.x);
-  send(gyroscope.gyro.y);
-  send(gyroscope.gyro.z);
-}
-
-void GPS() {
-  float latitude;
-  float longitude;
-  float altitude;
-
-  /*while (gpsSerial.available()) {
-    if (gps.encode(gpsSerial.read())) {
-      gps.f_get_position(&latitude, &longitude);
-      altitude = gps.f_altitude();
-    }
-    }*/
-
-  /*while (ss.available() > 0) {
-    gps.encode(ss.read());
-    if (gps.location.isUpdated()) {
-      latitude = gps.location.lat(), 3;
-      longitude = gps.location.lng(), 3;
-    }
-    }*/
-
-  send(latitude);
-  send(longitude);
-  send(altitude);
 }
 
 void send(float val) {

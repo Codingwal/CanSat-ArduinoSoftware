@@ -40,7 +40,6 @@ void loop() {
     if (file) {
       while (file.available()) {
         Serial.write(file.read());
-        file.close(); // Schließt die Datei, war eine mögliche Fehlerquelle
       }
       file.close();
     } else {

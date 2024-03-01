@@ -89,6 +89,7 @@ async function readPort() {
                 if (datablock[14] == datablockend) {
                     console.log(`Datenblock ${datablock[1]} empfangen!`);
                     processDatablock(datablock);
+                    refreshScreen(data);
                 }
                 if (lastitem == datablockstart) { // Neuer Datenblock fängt an
                     rawdatablock = datablockstart + '\r\n';
@@ -141,8 +142,6 @@ function processDatablock(datablock) {
         timer = Date.now();
 
         calcRelativePos(data);
-
-        refreshScreen(data);
     } else {
         corruptdatablocks++
     }
@@ -264,6 +263,7 @@ async function importFromSD() {
     setInterval(() => {
         console.log('Interval');
         if (importCompleted()) {
+            document.body.innerHTML = (sdraw.length / 1000).toFixed(3) + 'KB';
             if (!rawSDdataProceded) {
                 processSDRawData(sdraw);
             }
@@ -352,4 +352,6 @@ function processSDRawData(rawdata) {
             corruptdatablocks++;
         }
     });
+
+    refreshScreen(data);
 }

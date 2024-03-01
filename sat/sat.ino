@@ -77,7 +77,7 @@ void setup() {
   // Serial.println(100);
 
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
+  digitalWrite(LED_PIN, LOW);
 
   pinMode(FAN_PIN, OUTPUT);
   digitalWrite(FAN_PIN, LOW);
@@ -129,7 +129,7 @@ void setup() {
 
   {
     Serial.println(200);
-    digitalWrite(LED_PIN, LOW); // LED an
+    digitalWrite(LED_PIN, HIGH); // LED an
 
     // Nur bei genügend Speicher einbauen, braucht ganze 2%!
     /*  tone(SPEAKER_PIN, 200);
@@ -249,10 +249,10 @@ void error(int errorCode) {
   // Dauerhaftes Fehler-Piepen und blinkende LED
   byte countdown = 60; // 60 Sekunden = 1 Minute
   while (countdown > 0) {
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(LED_PIN, HIGH);
     tone(SPEAKER_PIN, 1000, 500);
     delay(500);
-    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(LED_PIN, LOW);
     delay(500);
 
     countdown--;

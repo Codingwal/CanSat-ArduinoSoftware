@@ -108,7 +108,7 @@ async function readPort() {
     }
 }
 
-function processDatablock(datablock) {
+function processDatablock(datablock, useTimer = true) {
     if (datablock[0] == datablockstart &&
         datablock[14] == datablockend &&
         dataBlockOK(datablock)) {
@@ -134,13 +134,15 @@ function processDatablock(datablock) {
         data.ejected.push((infos >> 1) & 1);
         data.landed.push((infos >> 2) & 1);
 
-        if (timer != undefined) {
-            data.time.push((Date.now() - timer) / 1000); // In Sekunden, statt Millisekunden
-        } else {
-            data.time.push(0);
-        }
+        if (useTimer) {
+            if (timer != undefined) {
+                data.time.push((Date.now() - timer) / 1000); // In Sekunden, statt Millisekunden
+            } else {
+                data.time.push(0);
+            }
 
-        timer = Date.now();
+            timer = Date.now();
+        }
 
         calcRelativePos(data);
     } else {
@@ -345,12 +347,13 @@ function processSDRawData(rawdata) {
         datablock.push(item);
         if (datablock[14] == datablockend) {
             console.log(`Datenblock ${datablock[1]} empfangen!`);
-            processDatablock(datablock);
+            processDatablock(datablock, false);
+            data.time.push(0.712); // Standartwert
         }
         if (datablock.length > 15) { // Bei zu langen Blöcken neu anfangen
-            rawdatablock = '';
+            datablock = [];
         } else if (datablock[datablock.length - 1] == datablockstart) { // Neuer Datenblock fängt an
-            rawdatablock = datablockstart + '\r\n';
+            datablock = [datablockstart];
             corruptdatablocks++
         }
     });

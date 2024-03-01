@@ -23,13 +23,13 @@
 #define BNO055_I2C_ADDRESS 0x28
 
 // PIN Belegungen
+#define GPS_TX_PIN 2 // Es beleiben PIN D2 und D3 für das GPS-Modul übrig
+#define GPS_RX_PIN 3
 #define FAN_PIN 4
-#define GPS_RX_PIN 00
-#define GPS_TX_PIN 00
 #define LORA_RX_PIN 5
 #define LORA_TX_PIN 6
-#define LED_PIN 2
 #define SPEAKER_PIN 8
+#define LED_PIN 9
 #define SD_CS_PIN 10
 
 // Fehlercodes

@@ -347,8 +347,15 @@ function processSDRawData(rawdata) {
         datablock.push(item);
         if (datablock[14] == datablockend) {
             console.log(`Datenblock ${datablock[1]} empfangen!`);
+
+            if (data.time.length > 0) {
+                data.time.push(0.712); // Standartwert
+            } else {
+                data.time.push(0);
+            }
+
             processDatablock(datablock, false);
-            data.time.push(0.712); // Standartwert
+            datablock = [];
         }
         if (datablock.length > 15) { // Bei zu langen Blöcken neu anfangen
             datablock = [];

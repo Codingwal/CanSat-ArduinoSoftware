@@ -8,6 +8,9 @@ let datablock = [];
 let bigwidth = (document.body.offsetWidth - 10) / 1 - 30;
 let mediumwidth = (document.body.offsetWidth - 10) / 2 - 30;
 let smallwidth = (document.body.offsetWidth - 10) / 3 - 30;
+let biggrad = bigwidth / 10;
+let mediumgrad = mediumwidth / 5;
+let smallgrad = smallwidth / 3;
 
 const calibration = {
     temperature: 0,
@@ -90,12 +93,11 @@ async function readPort() {
                     processDatablock(datablock);
                     refreshScreen(data);
                 }
-                if (lastitem == datablockstart) { // Neuer Datenblock fängt an
-                    rawdatablock = datablockstart + '\r\n';
-                }
                 if (datablock.length > 15) { // Bei zu langen Blöcken neu anfangen
                     rawdatablock = '';
-                    corruptdatablocks++;
+                } else if (datablock[datablock.length - 1] == datablockstart) { // Neuer Datenblock fängt an
+                    rawdatablock = datablockstart + '\r\n';
+                    corruptdatablocks++
                 }
             }
         } catch (error) {
@@ -215,19 +217,19 @@ async function calcRelativePos(data, recalc = false) {
 async function refreshScreen(data) {
     document.body.innerHTML =
         '<div class="big"><a onclick="exportData()">Daten exportieren</a> | <a onclick="exportRawData()">Roh-Daten exportieren</a></div>' +
-        '<div class="medium">Temperatur [°C]: <br>' + generateSVGChart(data.temperature, mediumwidth, 200, data.time) + '</div>' +
-        '<div class="medium">Druck [Pa]: <br>' + generateSVGChart(data.pressure, mediumwidth, 200, data.time) + '</div>' +
-        '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(bmp_altitude, bigwidth, 300, data.time) + '</div>' +
+        '<div class="medium">Temperatur [°C]: <br>' + generateSVGChart(data.temperature, mediumwidth, 200, data.time, mediumgrad) + '</div>' +
+        '<div class="medium">Druck [Pa]: <br>' + generateSVGChart(data.pressure, mediumwidth, 200, data.time, mediumgrad) + '</div>' +
+        '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(bmp_altitude, bigwidth, 300, data.time, biggrad) + '</div>' +
         '<div class="small">Höhe (Luftdruck): <br>' + bmp_height.toFixed(3) + 'm</div>' +
         '<div class="small">Verschiebung (Beschleunigung): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +
         '<div class="small">Verschiebung (GPS): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +
-        '<div class="small">Beschleunigung (X-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationX, smallwidth, 100, data.time) + '</div>' +
-        '<div class="small">Beschleunigung (Y-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationY, smallwidth, 100, data.time) + '</div>' +
-        '<div class="small">Beschleunigung (Z-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationZ, smallwidth, 100, data.time) + '</div>' +
-        '<div class="small">Rotation (X-Achse): <br>' + generateSVGChart(data.rotationX, smallwidth, 100, data.time) + '</div>' +
-        '<div class="small">Rotation (Y-Achse): <br>' + generateSVGChart(data.rotationY, smallwidth, 100, data.time) + '</div>' +
-        '<div class="small">Rotation (Z-Achse): <br>' + generateSVGChart(data.rotationZ, smallwidth, 100, data.time) + '</div>' +
-        '<div class="big">' + (data.messages.length - 1) + ' von ' + Math.round(data.messages[data.messages.length - 1]) + ' Datenblöcken empfangen.<br>' + corruptdatablocks + ' Datenblöcke fehlerhaft.<br>Letzter Datenblock wurde mit ' + data.time[data.time.length - 1] + ' ms zum vorherigen empfangen.</div>';
+        '<div class="small">Beschleunigung (X-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationX, smallwidth, 100, data.time, smallgrad) + '</div>' +
+        '<div class="small">Beschleunigung (Y-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationY, smallwidth, 100, data.time, smallgrad) + '</div>' +
+        '<div class="small">Beschleunigung (Z-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationZ, smallwidth, 100, data.time, smallgrad) + '</div>' +
+        '<div class="small">Rotation (X-Achse): <br>' + generateSVGChart(data.rotationX, smallwidth, 100, data.time, smallgrad) + '</div>' +
+        '<div class="small">Rotation (Y-Achse): <br>' + generateSVGChart(data.rotationY, smallwidth, 100, data.time, smallgrad) + '</div>' +
+        '<div class="small">Rotation (Z-Achse): <br>' + generateSVGChart(data.rotationZ, smallwidth, 100, data.time, smallgrad) + '</div>' +
+        '<div class="big">' + (data.messages.length - 1) + ' von ' + Math.round(data.messages[data.messages.length - 1]) + ' Datenblöcken empfangen.<br>' + corruptdatablocks + ' Datenblöcke fehlerhaft.<br>Letzter Datenblock wurde mit ' + data.time[data.time.length - 1] + ' Sekunden zum vorherigen empfangen.</div>';
 }
 
 function exportRawData() {
@@ -345,12 +347,11 @@ function processSDRawData(rawdata) {
             console.log(`Datenblock ${datablock[1]} empfangen!`);
             processDatablock(datablock);
         }
-        if (item == datablockstart) { // Neuer Datenblock fängt an
-            datablock = [datablockstart];
-        }
         if (datablock.length > 15) { // Bei zu langen Blöcken neu anfangen
-            datablock = [];
-            corruptdatablocks++;
+            rawdatablock = '';
+        } else if (datablock[datablock.length - 1] == datablockstart) { // Neuer Datenblock fängt an
+            rawdatablock = datablockstart + '\r\n';
+            corruptdatablocks++
         }
     });
 

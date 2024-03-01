@@ -1,4 +1,4 @@
-function generateSVGChart(values, width, height, xsteps, weight = 2.5, gapY = 100 / 3, gapX = 100 / 1, gradweight = 1) {
+function generateSVGChart(values, width, height, xsteps, gapX = width / 10, gapY = height / 5, weight = 2.5, gradweight = 1) {
     let minAndMax = getMinAndMax(values);
     let minValue = minAndMax[0];
     let maxValue = minAndMax[1];
@@ -23,22 +23,22 @@ function generateSVGChart(values, width, height, xsteps, weight = 2.5, gapY = 10
 
     let x = 0;
     let svg = `<path d="M${toaddX} ${height - (values[0] * scaleY + toaddY)}`;
-    for (let i = 1; i < values.length; i++) {
-        x += xsteps[i];
+    for (let i = 0; i < values.length; i++) {
+        x += xsteps[i + 1];
         svg += `L${(x / xwidth) * (width - weight) + toaddX} ${height - (values[i] * scaleY + toaddY)}`;
     }
 
     svg += `" fill="none" stroke="currentColor" stroke-width="${weight}" stroke-linejoin="round" stroke-linecap="round"></path>`;
 
     // Gradierung hinzufügen
-    for (let i = 1; i <= width / gapX; i++) {
-        svg += `<path style="z-index: -1" d="M${i * gapX} 0 L ${i * gapX} ${height}" stroke-width="${i == 0 || i == width / gapX ? gradweight * 2 : gradweight}" stroke="#808080"></path>`;
-        svg += `<text x="${i + 1 > width / gapX ? width - 34 /* 34 Pixel ist der Text lang*/ : i * gapX}" font-size="12" y="${height}">${((i / (width / gapX) * xwidth) / 60).toFixed(3)}</text>`; // Von Sekunden in Minuten, nur für CanSat
-    }
-
     for (let i = 0; i <= height / gapY; i++) {
         svg += `<path style="z-index: -1" d="M0 ${i * gapY} L ${width} ${i * gapY}" stroke-width="${i == 0 || i == height / gapY ? gradweight * 2 : gradweight}" stroke="#808080"></path>`;
         svg += `<text x="5" font-size="12" y="${i == 0 ? '12' : i * gapY}">${(Number(maxValue) - range / (height / gapY) * i).toFixed(3)}</text>`;
+    }
+
+    for (let i = 1; i <= width / gapX; i++) {
+        svg += `<path style="z-index: -1" d="M${i * gapX} 0 L ${i * gapX} ${height}" stroke-width="${i == 0 || i == width / gapX ? gradweight * 2 : gradweight}" stroke="#808080"></path>`;
+        svg += `<text x="${i + 1 > width / gapX ? width - 34 /* 34 Pixel ist der Text lang*/ : i * gapX}" font-size="12" y="${height}">${((i / (width / gapX) * xwidth) / 60).toFixed(3)}</text>`; // Von Sekunden in Minuten, nur für CanSat
     }
 
     return `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;

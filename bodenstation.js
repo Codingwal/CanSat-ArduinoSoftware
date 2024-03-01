@@ -262,7 +262,9 @@ let rawSDdataProceded = false;
 async function importFromSD() {
     setInterval(() => {
         console.log('Interval');
-        document.body.innerHTML = (sdraw.length / 1000).toFixed(3) + 'KB';
+        if (!rawSDdataProceded) {
+            document.body.innerHTML = (sdraw.length / 1000).toFixed(3) + 'KB';
+        }
         if (importCompleted()) {
             if (!rawSDdataProceded) {
                 processSDRawData(sdraw);

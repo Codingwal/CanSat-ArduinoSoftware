@@ -8,7 +8,6 @@ let datablock = [];
 let bigwidth = (document.body.offsetWidth - 10) / 1 - 30;
 let mediumwidth = (document.body.offsetWidth - 10) / 2 - 30;
 let smallwidth = (document.body.offsetWidth - 10) / 3 - 30;
-let lineweight = 2.5;
 
 const calibration = {
     temperature: 0,
@@ -33,7 +32,7 @@ let data = {
     ejected: [],
     landed: [],
     messages: [],
-    time: [] // Zeit bis zum Datenblock
+    time: [] // Zeit bis zum Datenblock in Sekunden
 }
 
 let bmp_altitude = [];
@@ -134,7 +133,7 @@ function processDatablock(datablock) {
         data.landed.push((infos >> 2) & 1);
 
         if (timer != undefined) {
-            data.time.push(Date.now() - timer);
+            data.time.push((Date.now() - timer) / 1000); // In Sekunden, statt Millisekunden
         } else {
             data.time.push(0);
         }
@@ -182,7 +181,7 @@ async function calcRelativePos(data, recalc = false) {
     let newmovementX, newmovementY, newmovementZ;
 
     for (let i = lastuseddatablock + 1; i < data.time.length; i++) {
-        let time = (data.time[i] / 1000);
+        let time = data.time[i]; // In Sekunden
 
         newmovementX = 0.5 * data.accelerationX[i] * Math.pow(time, 2);
         newmovementY = 0.5 * data.accelerationY[i] * Math.pow(time, 2);
@@ -216,18 +215,18 @@ async function calcRelativePos(data, recalc = false) {
 async function refreshScreen(data) {
     document.body.innerHTML =
         '<div class="big"><a onclick="exportData()">Daten exportieren</a> | <a onclick="exportRawData()">Roh-Daten exportieren</a></div>' +
-        '<div class="medium">Temperatur [°C]: <br>' + generateSVGChart(data.temperature, mediumwidth, 200, lineweight) + '</div>' +
-        '<div class="medium">Druck [Pa]: <br>' + generateSVGChart(data.pressure, mediumwidth, 200, lineweight) + '</div>' +
-        '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(bmp_altitude, bigwidth, 300, lineweight) + '</div>' +
+        '<div class="medium">Temperatur [°C]: <br>' + generateSVGChart(data.temperature, mediumwidth, 200, data.time) + '</div>' +
+        '<div class="medium">Druck [Pa]: <br>' + generateSVGChart(data.pressure, mediumwidth, 200, data.time) + '</div>' +
+        '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(bmp_altitude, bigwidth, 300, data.time) + '</div>' +
         '<div class="small">Höhe (Luftdruck): <br>' + bmp_height.toFixed(3) + 'm</div>' +
         '<div class="small">Verschiebung (Beschleunigung): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +
         '<div class="small">Verschiebung (GPS): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +
-        '<div class="small">Beschleunigung (X-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationX, smallwidth, 100, lineweight) + '</div>' +
-        '<div class="small">Beschleunigung (Y-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationY, smallwidth, 100, lineweight) + '</div>' +
-        '<div class="small">Beschleunigung (Z-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationZ, smallwidth, 100, lineweight) + '</div>' +
-        '<div class="small">Rotation (X-Achse): <br>' + generateSVGChart(data.rotationX, smallwidth, 100, lineweight) + '</div>' +
-        '<div class="small">Rotation (Y-Achse): <br>' + generateSVGChart(data.rotationY, smallwidth, 100, lineweight) + '</div>' +
-        '<div class="small">Rotation (Z-Achse): <br>' + generateSVGChart(data.rotationZ, smallwidth, 100, lineweight) + '</div>' +
+        '<div class="small">Beschleunigung (X-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationX, smallwidth, 100, data.time) + '</div>' +
+        '<div class="small">Beschleunigung (Y-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationY, smallwidth, 100, data.time) + '</div>' +
+        '<div class="small">Beschleunigung (Z-Achse) [m/s^2]: <br>' + generateSVGChart(data.accelerationZ, smallwidth, 100, data.time) + '</div>' +
+        '<div class="small">Rotation (X-Achse): <br>' + generateSVGChart(data.rotationX, smallwidth, 100, data.time) + '</div>' +
+        '<div class="small">Rotation (Y-Achse): <br>' + generateSVGChart(data.rotationY, smallwidth, 100, data.time) + '</div>' +
+        '<div class="small">Rotation (Z-Achse): <br>' + generateSVGChart(data.rotationZ, smallwidth, 100, data.time) + '</div>' +
         '<div class="big">' + (data.messages.length - 1) + ' von ' + Math.round(data.messages[data.messages.length - 1]) + ' Datenblöcken empfangen.<br>' + corruptdatablocks + ' Datenblöcke fehlerhaft.<br>Letzter Datenblock wurde mit ' + data.time[data.time.length - 1] + ' ms zum vorherigen empfangen.</div>';
 }
 

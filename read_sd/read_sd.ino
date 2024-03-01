@@ -22,8 +22,9 @@ void setup() {
     Serial.print(" ");
     counter++;
   }
-  Serial.print("Select file to open: 0-");
-  Serial.println(counter - 1);
+  Serial.print("Select file to open");
+  // Serial.print("Select file to open: 0-");
+  // Serial.println(counter - 1);
 }
 
 void loop() {

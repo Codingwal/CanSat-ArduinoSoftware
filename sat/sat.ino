@@ -31,6 +31,7 @@
 #define SPEAKER_PIN 8
 #define LED_PIN 9
 #define SD_CS_PIN 10
+#define VOLTAGE_PIN A0
 
 // Fehlercodes
 #define ERROR_BMP 501
@@ -208,12 +209,14 @@ void loop() {
     }
   }
 
+  // Serial.println(analogRead(VOLTAGE_PIN) / 1023 * 5 * 2);
+
   // Falls ausgeworfen, piept der akustische Signalgeber
   if (ejected) {
     tone(SPEAKER_PIN, 1000, 500); // 0.5 Sekunden den Ton abspielen
   }
 
-  if (bmp_altitude < FAN_STARTING_HEIGHT) {
+  if (bmp_altitude < FAN_STARTING_HEIGHT && ejected) {
     fan = true;
     digitalWrite(FAN_PIN, HIGH);
   }

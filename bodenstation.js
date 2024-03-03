@@ -16,7 +16,10 @@ const calibration = {
     temperature: 0,
     accelerationX: 0,
     accelerationY: 0,
-    accelerationZ: 0
+    accelerationZ: 0,
+    rotationX: 0,
+    rotationY: 0,
+    rotationZ: 0
 }
 
 let data = {
@@ -38,7 +41,7 @@ let data = {
     time: [] // Zeit bis zum Datenblock in Sekunden
 }
 
-let bmp_altitude = [];
+let bmp_altitudes = [];
 
 let sealevelhpa;
 
@@ -58,7 +61,7 @@ let movementZ = 0;
 
 let startheight = undefined;
 
-let lastuseddatablock = 0;
+let lastuseddatablock = -1;
 
 let rawdata = '';
 
@@ -89,9 +92,12 @@ async function readPort() {
                 rawdata += lastitem;
                 datablock = rawdatablock.split('\r\n');
                 if (datablock[14] == datablockend) {
-                    console.log(`Datenblock ${datablock[1]} empfangen!`);
+                    // console.log(`Datenblock ${datablock[1]} empfangen!`);
                     processDatablock(datablock);
-                    refreshScreen(data);
+
+                    if (lastuseddatablock > 0) {
+                        refreshScreen(data);
+                    }
                 }
                 if (datablock.length > 15) { // Bei zu langen Blöcken neu anfangen
                     rawdatablock = '';
@@ -112,27 +118,28 @@ function processDatablock(datablock, useTimer = true) {
     if (datablock[0] == datablockstart &&
         datablock[14] == datablockend &&
         dataBlockOK(datablock)) {
-        data.messages.push(datablock[1]);
+        data.messages.push(Number(datablock[1]));
 
-        data.temperature.push(datablock[2] - calibration.temperature);
-        data.pressure.push(datablock[3]);
+        data.temperature.push(Number(datablock[2]) - calibration.temperature);
+        data.pressure.push(Number(datablock[3]));
 
-        data.accelerationX.push(datablock[4] - calibration.accelerationX);
-        data.accelerationY.push(datablock[5] - calibration.accelerationY);
-        data.accelerationZ.push(datablock[6] - calibration.accelerationZ);
+        data.accelerationX.push(Number(datablock[4]) - calibration.accelerationX);
+        data.accelerationY.push(Number(datablock[5]) - calibration.accelerationY);
+        data.accelerationZ.push(Number(datablock[6]) - calibration.accelerationZ);
 
-        data.rotationX.push(datablock[7]);
-        data.rotationY.push(datablock[8]);
-        data.rotationZ.push(datablock[9]);
+        data.rotationX.push(Number(datablock[7]) - calibration.rotationX);
+        data.rotationY.push(Number(datablock[8]) - calibration.rotationY);
+        data.rotationZ.push(Number(datablock[9]) - calibration.rotationZ);
 
-        data.latitude.push(datablock[10]);
-        data.longitude.push(datablock[11]);
-        data.altitude.push(datablock[12]);
+        data.latitude.push(Number(datablock[10]));
+        data.longitude.push(Number(datablock[11]));
+        data.altitude.push(Number(datablock[12]));
 
-        let infos = datablock[13];
+        let infos = Number(datablock[13]);
         data.fan.push(infos & 1);
         data.ejected.push((infos >> 1) & 1);
         data.landed.push((infos >> 2) & 1);
+
 
         if (useTimer) {
             if (timer != undefined) {
@@ -143,6 +150,7 @@ function processDatablock(datablock, useTimer = true) {
 
             timer = Date.now();
         }
+
 
         calcRelativePos(data);
     } else {
@@ -177,9 +185,9 @@ async function calcRelativePos(data, recalc = false) {
 
         // BMP
         sealevelhpa = undefined;
-        bmp_altitude = [];
+        bmp_altitudes = [];
 
-        lastuseddatablock = 0;
+        lastuseddatablock = -1;
     }
 
     let newmovementX, newmovementY, newmovementZ;
@@ -207,13 +215,13 @@ async function calcRelativePos(data, recalc = false) {
         }
 
         if (sealevelhpa == undefined) {
-            sealevelhpa = calcSeaLevelHpa(data.pressure[startdatablock], startaltitude);
+            sealevelhpa = calcSeaLevelHpa(data.pressure[i], startaltitude);
         }
-        bmp_altitude.push(calcAltitude(data.pressure[i]));
+        bmp_altitudes.push(calcAltitude(data.pressure[i]));
 
         lastuseddatablock = i;
     }
-    bmp_height = bmp_altitude[bmp_altitude.length - 1] - startaltitude;
+    bmp_height = bmp_altitudes[bmp_altitudes.length - 1] - startaltitude;
 }
 
 async function refreshScreen(data) {
@@ -221,7 +229,7 @@ async function refreshScreen(data) {
         '<div class="big"><a onclick="exportData()">Daten exportieren</a> | <a onclick="exportRawData()">Roh-Daten exportieren</a></div>' +
         '<div class="medium">Temperatur [°C]: <br>' + generateSVGChart(data.temperature, mediumwidth, 200, data.time, mediumgrad) + '</div>' +
         '<div class="medium">Druck [Pa]: <br>' + generateSVGChart(data.pressure, mediumwidth, 200, data.time, mediumgrad) + '</div>' +
-        '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(bmp_altitude, bigwidth, 300, data.time, biggrad) + '</div>' +
+        '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(bmp_altitudes, bigwidth, 300, data.time, biggrad) + '</div>' +
         '<div class="small">Höhe (Luftdruck): <br>' + bmp_height.toFixed(3) + 'm</div>' +
         '<div class="small">Verschiebung (Beschleunigung): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +
         '<div class="small">Verschiebung (GPS): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +

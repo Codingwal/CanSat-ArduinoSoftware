@@ -24,7 +24,7 @@ function generateSVGChart(values, width, height, xsteps, gapX = width / 10, gapY
     let x = 0;
     let svg = `<path d="M${toaddX} ${height - (values[0] * scaleY + toaddY)}`;
     for (let i = 0; i < values.length; i++) {
-        x += xsteps[i + 1];
+        x += xsteps[i];
         svg += `L${(x / xwidth) * (width - weight) + toaddX} ${height - (values[i] * scaleY + toaddY)}`;
     }
 

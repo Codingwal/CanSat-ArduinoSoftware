@@ -1,11 +1,8 @@
-// Delta T in der Datei speichern!
-
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
 #include <Adafruit_BNO055.h>
 #include <SoftwareSerial.h>
-//#include <TinyGPS.h>
-//#include <TinyGPSPlus.h>
+#include <TinyGPSPlus.h>
 #include <RH_RF95.h>
 #include <SdFat.h>
 
@@ -49,14 +46,13 @@
 #define STARTALTITUDE 30  // Höhe vor dem Start vom Flugplatz
 
 #define TOLERANCE 5 // Toleranz in Metern, um Höhenunterschiede mit dem BMP zu messen
-#define FAN_STARTING_HEIGHT 100
+#define FAN_STARTING_HEIGHT 400 // Ab welcher Höhe der Lüfter den Airbag aufblässt
 #define BMP_ALTITUDES_SIZE 8 // Wie viele letzte Temperaturen gespeichert werden sollen
 
 Adafruit_BMP280 bmp;
 Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
-// SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
-// SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
-// TinyGPSPlus gps;
+TinyGPSPlus gps;
+SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
 SoftwareSerial rf(LORA_RX_PIN, LORA_TX_PIN);
 RH_RF95 rf95(rf);
 
@@ -70,25 +66,20 @@ bool landed = false;
 
 int counter = 0;
 
+long time;
+
 SdFat32 SD;
 File32 file;
 
 void setup() {
   Serial.begin(9600);
-  // Serial.println(100);
+  Serial.println(100);
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
 
   pinMode(FAN_PIN, OUTPUT);
   digitalWrite(FAN_PIN, LOW);
-
-  /*
-    pinMode(GPS_RX_PIN, OUTPUT); // GPS-Pin auf Output setzen
-    pinMode(GPS_TX_PIN, OUTPUT); // GPS-Pin auf Output setzen
-    digitalWrite(GPS_RX_PIN, LOW); // Spannung auf GPS-Pin ausschalten
-    digitalWrite(GPS_TX_PIN, LOW); // Spannung auf GPS-Pin ausschalten
-  */
 
   if (!bmp.begin(BMP280_I2C_ADDRESS)) { // Init BMP (Luftdruck & Temperatur)
     error(ERROR_BMP);
@@ -98,17 +89,15 @@ void setup() {
     sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
   }
 
-  // Init BNO (Inertialplatform)
-  /*if (!bno.begin()) {
+  if (!bno.begin()) { // Init BNO (Inertialplatform)
     error(ERROR_BNO);
-    }*/
+  }
   if (!rf95.init()) { // RF95 (Funkmodul) initialisieren
     error(ERROR_RF95);
   }
   rf95.setFrequency(FREQUENCY);
 
-  // gpsSerial.begin(9600); // Init GPS
-  // ss.begin(9600);
+  ss.begin(9600); // GPS
 
   if (!SD.begin(SD_CS_PIN)) { // Init SD (Speicher)
     error(ERROR_SD_CONNECT);
@@ -122,25 +111,24 @@ void setup() {
     }
     file = SD.open(String(filecounter), FILE_WRITE);
     if (file) {
-      file.println(""); // Es muss irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
+      file.println(""); // Irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
     } else {
       error(ERROR_SD_OPEN);
     }
   }
 
-  {
-    Serial.println(200);
-    digitalWrite(LED_PIN, HIGH); // LED an
+  Serial.println(200);
+  digitalWrite(LED_PIN, HIGH); // LED an
+  time = millis();
 
-    // Nur bei genügend Speicher einbauen, braucht ganze 2%!
-    /*  tone(SPEAKER_PIN, 200);
-        delay(100);
-        tone(SPEAKER_PIN, 400);
-        delay(100);
-        tone(SPEAKER_PIN, 600);
-        delay(100);
-        noTone(SPEAKER_PIN);*/
-  }
+  // Nur bei genügend Speicher einbauen
+  /*  tone(SPEAKER_PIN, 200);
+      delay(100);
+      tone(SPEAKER_PIN, 400);
+      delay(100);
+      tone(SPEAKER_PIN, 600);
+      delay(100);
+      noTone(SPEAKER_PIN);*/
 }
 
 void loop() {
@@ -172,33 +160,19 @@ void loop() {
   }
 
   { // GPS
-    float latitude;
-    float longitude;
-    float altitude;
-
-    /*while (gpsSerial.available()) {
-      if (gps.encode(gpsSerial.read())) {
-        gps.f_get_position(&latitude, &longitude);
-        altitude = gps.f_altitude();
+    if (!landed) {
+      while (ss.available()) {
+        gps.encode(ss.read());
       }
-      }*/
-
-    /*while (ss.available() > 0) {
-      gps.encode(ss.read());
-      if (gps.location.isUpdated()) {
-        latitude = gps.location.lat(), 3;
-        longitude = gps.location.lng(), 3;
-      }
-      }*/
-
-    send(latitude);
-    send(longitude);
-    send(altitude);
+      send(gps.location.lng());
+      send(gps.location.lng());
+      send(gps.altitude.meters());
+    }
   }
 
-  {
+  { // Fumktion zum schauen, ob ausgeworfen oder gelandet
     short x = bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE;
-    if (counter > BMP_ALTITUDES_SIZE) { // Falls der Zähler über der Länge an gespeicherten Höhenmetern ist, weiter machen, sonst würde der Satellit schon fliegen, weil die Werte noch 0.00 sind, und dem entsprechend der Satellit schon hochgeflogen sein muss
+    if (counter > BMP_ALTITUDES_SIZE) { // Erst mit Vergleichen beginnen, wenn die Liste an Vergleichswerten voll ist
       if (x > bmp_altitude) { // Falls die Höhe fällt
         ejected = true;
       } else if (x < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
@@ -209,10 +183,9 @@ void loop() {
     }
   }
 
-  // Serial.println(analogRead(VOLTAGE_PIN) / 1023 * 5 * 2);
+  // Serial.println(analogRead(VOLTAGE_PIN) / 1023 * 5 * 2); // Spannungsüberwachung
 
-  // Falls ausgeworfen, piept der akustische Signalgeber
-  if (ejected) {
+  if (ejected) {// Falls ausgeworfen, piept der akustische Signalgeber
     tone(SPEAKER_PIN, 1000, 500); // 0.5 Sekunden den Ton abspielen
   }
 
@@ -221,12 +194,16 @@ void loop() {
     digitalWrite(FAN_PIN, HIGH);
   }
 
-  // Falls geladet, Lüfter ausschalten
-  if (landed) {
+  if (landed) { // Falls geladet, Lüfter ausschalten
     digitalWrite(FAN_PIN, LOW);
   }
 
   send((fan << 0) + (ejected << 1) + (landed << 2));  // Sendet alle Bools in einem Byte
+
+
+  file.println(millis() - time, DEC);
+  time = millis(); // Zeit zurücksetzten, um jedesmal die Zeit, die die Schleife (loop()) gebraucht hat zu bestimmen
+  
   send(DATA_BLOCK_END);
 
   bmp_altitudes[counter % BMP_ALTITUDES_SIZE] = bmp_altitude; // Aktueller Höhenmeter-Wert speichern
@@ -242,7 +219,7 @@ void send(float val) {
   }
   {
     file.println(val, DEC);
-    file.flush(); // Tatsächlich physisch Speichern, wäre ansonsten evtl. nur im Buffer, was zu Fehlern führen kann :(
+    file.flush(); // Tatsächlich Speichern, wäre ansonsten evtl. nur im Buffer, was zu Fehlern führen kann :(
   }
 }
 

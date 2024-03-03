@@ -345,19 +345,22 @@ function processSDRawData(rawdata) {
 
     bigdatablock.forEach(item => {
         datablock.push(item);
-        if (datablock[14] == datablockend) {
+        if (datablock[15] == datablockend) {
             console.log(`Datenblock ${datablock[1]} empfangen!`);
 
             if (data.time.length > 0) {
-                data.time.push(0.712); // Standartwert
+                data.time.push(datablock[14] / 1000); // Zeit aus Datei lesen
             } else {
                 data.time.push(0);
             }
 
+            datablock[14] = datablockend; // Zeit aus Datenblock entfernen, damit wie beim Empfang ausgewertet werden kann
+            delete datablock[15];
+
             processDatablock(datablock, false);
             datablock = [];
         }
-        if (datablock.length > 15) { // Bei zu langen Blöcken neu anfangen
+        if (datablock.length > 16) { // Bei zu langen Blöcken neu anfangen
             datablock = [];
         } else if (datablock[datablock.length - 1] == datablockstart) { // Neuer Datenblock fängt an
             datablock = [datablockstart];

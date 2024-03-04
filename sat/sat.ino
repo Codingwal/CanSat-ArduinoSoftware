@@ -1,19 +1,14 @@
-#include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
 #include <Adafruit_BNO055.h>
 #include <SoftwareSerial.h>
-#include <TinyGPSPlus.h>
+// #include <TinyGPSPlus.h>
+#include <TinyGPSMinus.h>
 #include <RH_RF95.h>
 #include <SdFat.h>
 
-/*SPI Pins Arduino Nano
-  CS 10
-  MOSI 11
-  MISO 12
-  SCK 13
-  https://www.arduino.cc/reference/en/language/functions/communication/spi/
-  https://funduino.de/nr-28-das-sd-karten-modul
-*/
+// SPI Pins Arduino Nano: CS 10, MOSI 11, MISO 12, SCK 13
+// https://www.arduino.cc/reference/en/language/functions/communication/spi/
+// https://funduino.de/nr-28-das-sd-karten-modul
 
 // I2C Adressen
 #define BMP280_I2C_ADDRESS 0x76
@@ -51,7 +46,8 @@
 
 Adafruit_BMP280 bmp;
 Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
-TinyGPSPlus gps;
+// TinyGPSPlus gps;
+TinyGPSMinus gps;
 SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
 SoftwareSerial rf(LORA_RX_PIN, LORA_TX_PIN);
 RH_RF95 rf95(rf);
@@ -84,10 +80,7 @@ void setup() {
   if (!bmp.begin(BMP280_I2C_ADDRESS)) { // Init BMP (Luftdruck & Temperatur)
     error(ERROR_BMP);
   }
-  {
-    float pressure = bmp.readPressure();
-    sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
-  }
+  sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, bmp.readPressure());
 
   if (!bno.begin()) { // Init BNO (Inertialplatform)
     error(ERROR_BNO);
@@ -138,22 +131,22 @@ void loop() {
   send(counter);
 
   { // BMP
-    float pressure = bmp.readPressure();
+    //float pressure = bmp.readPressure();
 
-    bmp_altitude = 44300 * (1 - (pow(pressure / sealevelhpa, 0.1903)));
+    bmp_altitude = 44300 * (1 - (pow(bmp.readPressure() / sealevelhpa, 0.1903)));
 
     send(bmp.readTemperature());  // Temperatur senden
-    send(pressure);
+    send(bmp.readPressure());
   }
 
   { // BNO
     sensors_event_t accelerometer, gyroscope;
-    //bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL);  // Acceleration - Gravity
+    bno.getEvent(&accelerometer, Adafruit_BNO055::VECTOR_LINEARACCEL);  // Acceleration - Gravity
     send(accelerometer.acceleration.x);
     send(accelerometer.acceleration.y);
     send(accelerometer.acceleration.z);
 
-    //bno.getEvent(&gyroscope, Adafruit_BNO055::VECTOR_EULER);
+    bno.getEvent(&gyroscope, Adafruit_BNO055::VECTOR_EULER);
     send(gyroscope.gyro.x);
     send(gyroscope.gyro.y);
     send(gyroscope.gyro.z);
@@ -161,12 +154,19 @@ void loop() {
 
   { // GPS
     if (!landed) {
+      /*while (ss.available()) {
+        gps.encode(ss.read());
+        }
+        send(gps.location.lng());
+        send(gps.location.lng());
+        send(gps.altitude.meters());
+        }*/
       while (ss.available()) {
         gps.encode(ss.read());
       }
-      send(gps.location.lng());
-      send(gps.location.lng());
-      send(gps.altitude.meters());
+      send(gpscoord2float(gps.get_latitude(), 6));
+      send(gpscoord2float(gps.get_longitude(), 7));
+      send(gps.f_altitude());
     }
   }
 
@@ -203,7 +203,7 @@ void loop() {
 
   file.println(millis() - time, DEC);
   time = millis(); // Zeit zurücksetzten, um jedesmal die Zeit, die die Schleife (loop()) gebraucht hat zu bestimmen
-  
+
   send(DATA_BLOCK_END);
 
   bmp_altitudes[counter % BMP_ALTITUDES_SIZE] = bmp_altitude; // Aktueller Höhenmeter-Wert speichern
@@ -236,5 +236,27 @@ void error(int errorCode) {
     delay(500);
 
     countdown--;
+  }
+}
+
+float gpscoord2float(char* x, byte length) {
+  float result;
+  for (int i = 0; i < length; i++) {
+    result += char2float(x[i]) * pow(10, i);
+  }
+}
+
+float char2float(char x) {
+  switch (x) {
+    case 48: return 0;
+    case 49: return 1;
+    case 50: return 2;
+    case 51: return 3;
+    case 52: return 4;
+    case 53: return 5;
+    case 54: return 6;
+    case 55: return 7;
+    case 56: return 8;
+    case 57: return 9;
   }
 }

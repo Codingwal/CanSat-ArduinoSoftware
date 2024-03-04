@@ -1,8 +1,8 @@
 #include <Adafruit_BMP280.h>
 #include <Adafruit_BNO055.h>
 #include <SoftwareSerial.h>
-// #include <TinyGPSPlus.h>
-#include <TinyGPSMinus.h>
+//#include <TinyGPSPlus.h>
+//#include <TinyGPSMinus.h>
 #include <RH_RF95.h>
 #include <SdFat.h>
 
@@ -47,7 +47,7 @@
 Adafruit_BMP280 bmp;
 Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
 // TinyGPSPlus gps;
-TinyGPSMinus gps;
+//TinyGPSMinus gps;
 SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
 SoftwareSerial rf(LORA_RX_PIN, LORA_TX_PIN);
 RH_RF95 rf95(rf);
@@ -154,61 +154,67 @@ void loop() {
 
   { // GPS
     if (!landed) {
-      /*while (ss.available()) {
-        gps.encode(ss.read());
-        }
-        send(gps.location.lng());
-        send(gps.location.lng());
-        send(gps.altitude.meters());
-        }*/
+      char* gprmcString[128];
+      byte index = 0;
       while (ss.available()) {
-        gps.encode(ss.read());
-      }
-      send(gpscoord2float(gps.get_latitude(), 6));
-      send(gpscoord2float(gps.get_longitude(), 7));
-      send(gps.f_altitude());
-    }
-  }
+        char c = ss.read();
+        if (c == '\n') {
+          gprmcString[index] = '\0'; // Nullterminator setzen, um den String zu beenden
+          index = 0;
+          /*send(gpscoord2float(gps.get_latitude(), 6));
+            send(gpscoord2float(gps.get_longitude(), 7));
+            send(gps.f_altitude());*/
+          double latitude, longitude, altitude;
 
-  { // Fumktion zum schauen, ob ausgeworfen oder gelandet
-    short x = bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE;
-    if (counter > BMP_ALTITUDES_SIZE) { // Erst mit Vergleichen beginnen, wenn die Liste an Vergleichswerten voll ist
-      if (x > bmp_altitude) { // Falls die Höhe fällt
-        ejected = true;
-      } else if (x < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
-        if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein :)
-          landed = true;
+          // Extrahieren von Koordinaten aus dem GPRMC-String
+          extractCoordinates(gprmcString, &latitude, &longitude, &altitude);
+        } else {
+          // Hinzufügen des Zeichens zum GPRMC-String
+          gprmcString[index++] = c;
         }
       }
     }
+
+    { // Fumktion zum schauen, ob ausgeworfen oder gelandet
+      short x = bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE;
+      if (counter > BMP_ALTITUDES_SIZE) { // Erst mit Vergleichen beginnen, wenn die Liste an Vergleichswerten voll ist
+        if (x > bmp_altitude) { // Falls die Höhe fällt
+          ejected = true;
+        } else if (x < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
+          if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein :)
+            landed = true;
+          }
+        }
+      }
+    }
+
+    // Serial.println(analogRead(VOLTAGE_PIN) / 1023 * 5 * 2); // Spannungsüberwachung
+
+    if (ejected) {// Falls ausgeworfen, piept der akustische Signalgeber
+      tone(SPEAKER_PIN, 1000, 500); // 0.5 Sekunden den Ton abspielen
+    }
+
+    if (bmp_altitude < FAN_STARTING_HEIGHT && ejected) {
+      fan = true;
+      digitalWrite(FAN_PIN, HIGH);
+    }
+
+    if (landed) { // Falls geladet, Lüfter ausschalten
+      digitalWrite(FAN_PIN, LOW);
+    }
+
+    send((fan << 0) + (ejected << 1) + (landed << 2));  // Sendet alle Bools in einem Byte
+
+
+    file.println(millis() - time, DEC);
+    time = millis(); // Zeit zurücksetzten, um jedesmal die Zeit, die die Schleife (loop()) gebraucht hat zu bestimmen
+
+    send(DATA_BLOCK_END);
+
+    bmp_altitudes[counter % BMP_ALTITUDES_SIZE] = bmp_altitude; // Aktueller Höhenmeter-Wert speichern
+
+    counter++;
   }
-
-  // Serial.println(analogRead(VOLTAGE_PIN) / 1023 * 5 * 2); // Spannungsüberwachung
-
-  if (ejected) {// Falls ausgeworfen, piept der akustische Signalgeber
-    tone(SPEAKER_PIN, 1000, 500); // 0.5 Sekunden den Ton abspielen
-  }
-
-  if (bmp_altitude < FAN_STARTING_HEIGHT && ejected) {
-    fan = true;
-    digitalWrite(FAN_PIN, HIGH);
-  }
-
-  if (landed) { // Falls geladet, Lüfter ausschalten
-    digitalWrite(FAN_PIN, LOW);
-  }
-
-  send((fan << 0) + (ejected << 1) + (landed << 2));  // Sendet alle Bools in einem Byte
-
-
-  file.println(millis() - time, DEC);
-  time = millis(); // Zeit zurücksetzten, um jedesmal die Zeit, die die Schleife (loop()) gebraucht hat zu bestimmen
-
-  send(DATA_BLOCK_END);
-
-  bmp_altitudes[counter % BMP_ALTITUDES_SIZE] = bmp_altitude; // Aktueller Höhenmeter-Wert speichern
-
-  counter++;
 }
 
 void send(float val) {
@@ -258,5 +264,73 @@ float char2float(char x) {
     case 55: return 7;
     case 56: return 8;
     case 57: return 9;
+    default: 0;
   }
+}
+
+
+// By ChatGPT
+bool extractCoordinates(const char* gprmcString, double & latitude, double & longitude, double & altitude) {
+  char* token;
+  char* copy = strdup(gprmcString); // Kopie des Strings erstellen
+
+  // Erstes Komma überspringen
+  token = strtok(copy, ",");
+  for (int i = 0; i < 3; i++) {
+    token = strtok(NULL, ",");
+    if (token == NULL) {
+      free(copy);
+      return false;
+    }
+  }
+
+  // Breitengrad extrahieren
+  token = strtok(NULL, ",");
+  if (token == NULL) {
+    free(copy);
+    return false;
+  }
+  latitude = atof(token);
+
+  // N/S-Indikator überspringen
+  token = strtok(NULL, ",");
+  if (token == NULL) {
+    free(copy);
+    return false;
+  }
+
+  // Längengrad extrahieren
+  token = strtok(NULL, ",");
+  if (token == NULL) {
+    free(copy);
+    return false;
+  }
+  longitude = atof(token);
+
+  // E/W-Indikator überspringen
+  token = strtok(NULL, ",");
+  if (token == NULL) {
+    free(copy);
+    return false;
+  }
+
+  // Überspringen der restlichen GPRMC-Felder
+  for (int i = 0; i < 6; i++) {
+    token = strtok(NULL, ",");
+    if (token == NULL) {
+      free(copy);
+      return false;
+    }
+  }
+
+  // Höhe extrahieren
+  token = strtok(NULL, ",");
+  if (token == NULL) {
+    free(copy);
+    return false;
+  }
+  altitude = atof(token);
+
+  free(copy);
+  return true;
 }

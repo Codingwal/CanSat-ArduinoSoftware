@@ -153,68 +153,92 @@ void loop() {
   }
 
   { // GPS
+    float latitude, longitude, altitude;
     if (!landed) {
-      char* gprmcString[128];
-      byte index = 0;
-      while (ss.available()) {
-        char c = ss.read();
-        if (c == '\n') {
-          gprmcString[index] = '\0'; // Nullterminator setzen, um den String zu beenden
-          index = 0;
-          /*send(gpscoord2float(gps.get_latitude(), 6));
-            send(gpscoord2float(gps.get_longitude(), 7));
-            send(gps.f_altitude());*/
-          double latitude, longitude, altitude;
+      char input[80];
+      char GPGGA[80];
+      byte y = 0;
 
-          // Extrahieren von Koordinaten aus dem GPRMC-String
-          extractCoordinates(gprmcString, &latitude, &longitude, &altitude);
-        } else {
-          // Hinzufügen des Zeichens zum GPRMC-String
-          gprmcString[index++] = c;
+      bool isGPGGA = false;
+      bool isDollarSignFound = false;
+
+      while (ss.available() > 0) {
+        char x = ss.read();
+
+        if (x == '$') {
+          memset(input, 0, sizeof(input));
+          y = 0;
+          isDollarSignFound = true;
+          isGPGGA = false;
         }
-      }
-    }
 
-    { // Fumktion zum schauen, ob ausgeworfen oder gelandet
-      short x = bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE;
-      if (counter > BMP_ALTITUDES_SIZE) { // Erst mit Vergleichen beginnen, wenn die Liste an Vergleichswerten voll ist
-        if (x > bmp_altitude) { // Falls die Höhe fällt
-          ejected = true;
-        } else if (x < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
-          if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein :)
-            landed = true;
+        if (isDollarSignFound) {
+          input[y] = x;
+          y++;
+          if (y >= 6 && strncmp(input + 1, "GPGGA", 5) == 0) {
+            isGPGGA = true;
+          }
+          if (x == '\n') {
+            isDollarSignFound = false;
+            if (isGPGGA) {
+              strcpy(GPGGA, input);
+            }
           }
         }
       }
+
+      float gpsdata[5];
+      gpsStringToFloats(gpsdata, GPGGA);
+
+      latitude = gpsdata[0];
+      longitude = gpsdata[0];
+      altitude = gpsdata[4];
     }
 
-    // Serial.println(analogRead(VOLTAGE_PIN) / 1023 * 5 * 2); // Spannungsüberwachung
-
-    if (ejected) {// Falls ausgeworfen, piept der akustische Signalgeber
-      tone(SPEAKER_PIN, 1000, 500); // 0.5 Sekunden den Ton abspielen
-    }
-
-    if (bmp_altitude < FAN_STARTING_HEIGHT && ejected) {
-      fan = true;
-      digitalWrite(FAN_PIN, HIGH);
-    }
-
-    if (landed) { // Falls geladet, Lüfter ausschalten
-      digitalWrite(FAN_PIN, LOW);
-    }
-
-    send((fan << 0) + (ejected << 1) + (landed << 2));  // Sendet alle Bools in einem Byte
-
-
-    file.println(millis() - time, DEC);
-    time = millis(); // Zeit zurücksetzten, um jedesmal die Zeit, die die Schleife (loop()) gebraucht hat zu bestimmen
-
-    send(DATA_BLOCK_END);
-
-    bmp_altitudes[counter % BMP_ALTITUDES_SIZE] = bmp_altitude; // Aktueller Höhenmeter-Wert speichern
-
-    counter++;
+    send(latitude);
+    send(longitude);
+    send(altitude);
   }
+
+  { // Fumktion zum schauen, ob ausgeworfen oder gelandet
+    short x = bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE;
+    if (counter > BMP_ALTITUDES_SIZE) { // Erst mit Vergleichen beginnen, wenn die Liste an Vergleichswerten voll ist
+      if (x > bmp_altitude) { // Falls die Höhe fällt
+        ejected = true;
+      } else if (x < bmp_altitude) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
+        if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein :)
+          landed = true;
+        }
+      }
+    }
+  }
+
+  // Serial.println(analogRead(VOLTAGE_PIN) / 1023 * 5 * 2); // Spannungsüberwachung
+
+  if (ejected) {// Falls ausgeworfen, piept der akustische Signalgeber
+    tone(SPEAKER_PIN, 1000, 500); // 0.5 Sekunden den Ton abspielen
+  }
+
+  if (bmp_altitude < FAN_STARTING_HEIGHT && ejected) {
+    fan = true;
+    digitalWrite(FAN_PIN, HIGH);
+  }
+
+  if (landed) { // Falls geladet, Lüfter ausschalten
+    digitalWrite(FAN_PIN, LOW);
+  }
+
+  send((fan << 0) + (ejected << 1) + (landed << 2));  // Sendet alle Bools in einem Byte
+
+
+  file.println(millis() - time, DEC);
+  time = millis(); // Zeit zurücksetzten, um jedesmal die Zeit, die die Schleife (loop()) gebraucht hat zu bestimmen
+
+  send(DATA_BLOCK_END);
+
+  bmp_altitudes[counter % BMP_ALTITUDES_SIZE] = bmp_altitude; // Aktueller Höhenmeter-Wert speichern
+
+  counter++;
 }
 
 void send(float val) {
@@ -245,92 +269,20 @@ void error(int errorCode) {
   }
 }
 
-float gpscoord2float(char* x, byte length) {
-  float result;
-  for (int i = 0; i < length; i++) {
-    result += char2float(x[i]) * pow(10, i);
+int charToInt(char c) {
+  if (c == ',') {
+    return 0;
   }
+  return c - '0';
 }
 
-float char2float(char x) {
-  switch (x) {
-    case 48: return 0;
-    case 49: return 1;
-    case 50: return 2;
-    case 51: return 3;
-    case 52: return 4;
-    case 53: return 5;
-    case 54: return 6;
-    case 55: return 7;
-    case 56: return 8;
-    case 57: return 9;
-    default: 0;
-  }
-}
+void gpsStringToFloats(float *dest, const char *str)
+{
+  dest[0] = charToInt(str[16]) * 10 + charToInt(str[17]);
+  dest[1] = charToInt(str[18]) * 10 + charToInt(str[19]) + charToInt(str[21]) * 0.1 + charToInt(str[22]) * 0.01 + charToInt(str[23]) * 0.001;
 
+  dest[2] = charToInt(str[29]) * 100 + charToInt(str[30]) * 10 + charToInt(str[31]);
+  dest[3] = charToInt(str[32]) * 10 + charToInt(str[33]) + charToInt(str[35]) * 0.1 + charToInt(str[36]) * 0.01 + charToInt(str[37]) * 0.001;
 
-// By ChatGPT
-bool extractCoordinates(const char* gprmcString, double & latitude, double & longitude, double & altitude) {
-  char* token;
-  char* copy = strdup(gprmcString); // Kopie des Strings erstellen
-
-  // Erstes Komma überspringen
-  token = strtok(copy, ",");
-  for (int i = 0; i < 3; i++) {
-    token = strtok(NULL, ",");
-    if (token == NULL) {
-      free(copy);
-      return false;
-    }
-  }
-
-  // Breitengrad extrahieren
-  token = strtok(NULL, ",");
-  if (token == NULL) {
-    free(copy);
-    return false;
-  }
-  latitude = atof(token);
-
-  // N/S-Indikator überspringen
-  token = strtok(NULL, ",");
-  if (token == NULL) {
-    free(copy);
-    return false;
-  }
-
-  // Längengrad extrahieren
-  token = strtok(NULL, ",");
-  if (token == NULL) {
-    free(copy);
-    return false;
-  }
-  longitude = atof(token);
-
-  // E/W-Indikator überspringen
-  token = strtok(NULL, ",");
-  if (token == NULL) {
-    free(copy);
-    return false;
-  }
-
-  // Überspringen der restlichen GPRMC-Felder
-  for (int i = 0; i < 6; i++) {
-    token = strtok(NULL, ",");
-    if (token == NULL) {
-      free(copy);
-      return false;
-    }
-  }
-
-  // Höhe extrahieren
-  token = strtok(NULL, ",");
-  if (token == NULL) {
-    free(copy);
-    return false;
-  }
-  altitude = atof(token);
-
-  free(copy);
-  return true;
+  dest[4] = charToInt(str[55]) * 100 + charToInt(str[56]) * 10 + charToInt(str[57]) + charToInt(str[59]) * 0.1;
 }

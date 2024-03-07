@@ -1,5 +1,9 @@
 #include <iostream>
 
+#define LAT 17
+#define LON 29
+#define ALT 51
+
 int charToInt(char c)
 {
     return c - '0';
@@ -7,24 +11,23 @@ int charToInt(char c)
 
 void gpsStringToFloats(float *dest, const char *str)
 {
-    dest[0] = charToInt(str[16]) * 10 + charToInt(str[17]);
-    dest[1] = charToInt(str[18]) * 10 + charToInt(str[19]) + charToInt(str[21]) * 0.1 + charToInt(str[22]) * 0.01 + charToInt(str[23]) * 0.001;
+    dest[0] = charToInt(str[LAT]) * 1000 + charToInt(str[LAT + 1]) * 100 + charToInt(str[LAT + 2]) * 10 + charToInt(str[LAT + 3]) 
+    + charToInt(str[LAT + 5]) * 0.1 + charToInt(str[LAT + 6]) * 0.01 + charToInt(str[LAT + 7]) * 0.001+ charToInt(str[LAT + 8]) * 0.0001;
 
-    dest[2] = charToInt(str[29]) * 100 + charToInt(str[30]) * 10 + charToInt(str[31]);
-    dest[3] = charToInt(str[32]) * 10 + charToInt(str[33]) + charToInt(str[35]) * 0.1 + charToInt(str[36]) * 0.01 + charToInt(str[37]) * 0.001;
+    dest[1] = charToInt(str[LON]) * 10000 + charToInt(str[LON + 1]) * 1000 + charToInt(str[LON + 2]) * 100 + charToInt(str[LON + 3]) * 10 + charToInt(str[LON + 4]) 
+    + charToInt(str[LON + 6]) * 0.1 + charToInt(str[LON + 7]) * 0.01 + charToInt(str[LON + 8]) * 0.001+ charToInt(str[LON + 9]) * 0.0001;
 
-    dest[4] = charToInt(str[55]) * 100 + charToInt(str[56]) * 10 + charToInt(str[57]) + charToInt(str[59]) * 0.1;
+    dest[2] = charToInt(str[ALT]) * 1000 + charToInt(str[ALT + 1]) * 100 + charToInt(str[ALT + 2]) * 10 + charToInt(str[ALT + 3]) 
+    + charToInt(str[ALT + 5]) * 0.1 + charToInt(str[ALT + 6]) * 0.01;
 }
 
 int main()
 {
-    float data[5];
-    gpsStringToFloats(data, "$GPGGA, 123519, 4807.038, N, 01131.000, E, 1, 08, 0.9, 545.4, M, 46.9, M, , *47");
+    float data[3];
+    gpsStringToFloats(data, "$GPGGA,202530.00,5109.0262,N,11401.8407,W,5,40,0.5,1097.36,M,-17.00,M,18,TSTR*61");
     printf("%f\n", data[0]);
     printf("%f\n", data[1]);
     printf("%f\n", data[2]);
-    printf("%f\n", data[3]);
-    printf("%f\n", data[4]);
 
     return 0;
 }

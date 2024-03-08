@@ -77,9 +77,9 @@ void setup() {
   pinMode(FAN_PIN, OUTPUT);
   digitalWrite(FAN_PIN, LOW);
 
-  if (!bmp.begin(BMP280_I2C_ADDRESS)) { // Init BMP (Luftdruck & Temperatur)
+  /*if (!bmp.begin(BMP280_I2C_ADDRESS)) { // Init BMP (Luftdruck & Temperatur)
     error(ERROR_BMP);
-  }
+  }*/
   sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, bmp.readPressure());
 
   if (!bno.begin()) { // Init BNO (Inertialplatform)
@@ -95,7 +95,7 @@ void setup() {
   if (!SD.begin(SD_CS_PIN)) { // Init SD (Speicher)
     error(ERROR_SD_CONNECT);
   }
-  {
+  /*{
     // Datei mit höchstem Wert als Namen finden und dann mit Wert + 1 als Namen eine Datei erstellen
     // So muss nicht nach jedem Test die SD Karte geleert werden, sondern die Dateien sind chronologisch sortiert
     int filecounter = 0;
@@ -108,7 +108,7 @@ void setup() {
     } else {
       error(ERROR_SD_OPEN);
     }
-  }
+  }*/
 
   Serial.println(200);
   digitalWrite(LED_PIN, HIGH); // LED an
@@ -153,6 +153,7 @@ void loop() {
   }
 
   { // GPS
+    ss.listen();
     float latitude, longitude, altitude;
     if (!landed) {
       char input[80];
@@ -195,6 +196,7 @@ void loop() {
       altitude = gpsdata[4];
     }
 
+    rf.listen();
     send(latitude);
     send(longitude);
     send(altitude);
@@ -248,8 +250,8 @@ void send(float val) {
     rf95.send(tosend, sizeof(float));
   }
   {
-    file.println(val, DEC);
-    file.flush(); // Tatsächlich Speichern, wäre ansonsten evtl. nur im Buffer, was zu Fehlern führen kann :(
+    //file.println(val, DEC);
+    //file.flush(); // Tatsächlich Speichern, wäre ansonsten evtl. nur im Buffer, was zu Fehlern führen kann :(
   }
 }
 

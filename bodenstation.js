@@ -92,10 +92,13 @@ async function readPort() {
                 rawdata += lastitem;
                 datablock = rawdatablock.split('\r\n');
                 if (datablock[14] == datablockend) {
-                    // console.log(`Datenblock ${datablock[1]} empfangen!`);
+                    console.log(`Datenblock ${datablock[1]} empfangen!`);
                     processDatablock(datablock);
 
-                    if (lastuseddatablock > 0) {
+                    datablock = [];
+                    rawdatablock = '';
+
+                    if (lastuseddatablock > 1) {
                         refreshScreen(data);
                     }
                 }

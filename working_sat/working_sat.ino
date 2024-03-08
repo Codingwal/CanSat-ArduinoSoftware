@@ -2,7 +2,8 @@
 #include <Adafruit_BNO055.h>
 #include <SoftwareSerial.h>
 #include <RH_RF95.h>
-#include <SdFat.h>
+//#include <SdFat.h>
+#include <SD.h>
 
 // SPI Pins Arduino Nano: CS 10, MOSI 11, MISO 12, SCK 13
 // https://www.arduino.cc/reference/en/language/functions/communication/spi/
@@ -62,18 +63,41 @@ int counter = 0;
 
 long time;
 
-SdFat32 SD;
-File32 file;
+//SdFat32 SD;
+File file;
 
 void setup() {
   Serial.begin(9600);
   Serial.println(100);
+
+
+  if (!SD.begin(SD_CS_PIN)) {  // Init SD (Speicher)
+    error(ERROR_SD_CONNECT);
+  }
+
+  // Datei mit höchstem Wert als Namen finden und dann mit Wert + 1 als Namen eine Datei erstellen
+  // So muss nicht nach jedem Test die SD Karte geleert werden, sondern die Dateien sind chronologisch sortiert
+  int filecounter = 0;
+  while (SD.exists(String(filecounter))) {
+    filecounter++;
+  }
+  file = SD.open(String(filecounter), FILE_WRITE);
+  //file = SD.open("data.txt", FILE_WRITE);
+  if (file) {
+    file.println("");  // Irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
+  } else {
+    error(ERROR_SD_OPEN);
+  }
+
+
+  //ss.begin(9600);              // GPS
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
 
   pinMode(FAN_PIN, OUTPUT);
   digitalWrite(FAN_PIN, LOW);
+  Serial.println(1);
   if (!bmp.begin(BMP280_I2C_ADDRESS)) {  // Init BMP (Luftdruck & Temperatur)
     error(ERROR_BMP);
   }
@@ -81,28 +105,14 @@ void setup() {
   if (!bno.begin()) {  // Init BNO (Inertialplatform)
     error(ERROR_BNO);
   }
+  Serial.println(2);
   if (!rf95.init()) {  // RF95 (Funkmodul) initialisieren
     error(ERROR_RF95);
   }
+  Serial.println(3);
+  Serial.println(4);
+  Serial.println(5);
   rf95.setFrequency(FREQUENCY);
-  if (!SD.begin(SD_CS_PIN)) {  // Init SD (Speicher)
-    error(ERROR_SD_CONNECT);
-  }
-  {
-    // Datei mit höchstem Wert als Namen finden und dann mit Wert + 1 als Namen eine Datei erstellen
-    // So muss nicht nach jedem Test die SD Karte geleert werden, sondern die Dateien sind chronologisch sortiert
-    int filecounter = 100;
-    /*while (SD.exists(String(filecounter))) {
-      filecounter++;
-    }*/
-    file = SD.open(String(filecounter), FILE_WRITE);
-    if (file) {
-      file.println("");  // Irgendetwas in die erste Zeile geschrieben werden, damit die Zahlen gespeichert werden können
-    } else {
-      error(ERROR_SD_OPEN);
-    }
-  }
-  //ss.begin(9600);              // GPS
 
   Serial.println(200);
   digitalWrite(LED_PIN, HIGH);  // LED an
@@ -145,9 +155,58 @@ void loop() {
     send(gyroscope.gyro.z);
   }
 
-  send(0.00);
-  send(0.00);
-  send(0.00);
+
+  /*{ // GPS
+    ss.listen();
+    float latitude, longitude, altitude;
+    if (!landed) {
+      char input[80];
+      char GPGGA[80];
+      byte y = 0;
+
+      bool isGPGGA = false;
+      bool isDollarSignFound = false;
+
+      while (ss.available() > 0) {
+        char x = ss.read();
+
+        if (x == '$') {
+          memset(input, 0, sizeof(input));
+          y = 0;
+          isDollarSignFound = true;
+          isGPGGA = false;
+        }
+
+        if (isDollarSignFound) {
+          input[y] = x;
+          y++;
+          if (y >= 6 && strncmp(input + 1, "GPGGA", 5) == 0) {
+            isGPGGA = true;
+          }
+          if (x == '\n') {
+            isDollarSignFound = false;
+            if (isGPGGA) {
+              strcpy(GPGGA, input);
+            }
+          }
+        }
+      }
+
+      float gpsdata[5];
+      gpsStringToFloats(gpsdata, GPGGA);
+
+      latitude = gpsdata[0];
+      longitude = gpsdata[0];
+      altitude = gpsdata[4];
+    }*/
+
+  rf.listen();
+  //send(latitude);
+  //send(longitude);
+  //send(altitude);
+  //}
+
+
 
   { // Fumktion zum schauen, ob ausgeworfen oder gelandet
     short x = bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - TOLERANCE;
@@ -196,7 +255,7 @@ void send(float val) {
     memcpy(&tosend, &val, sizeof(float));
     rf95.send(tosend, sizeof(float));
   }
-  Serial.println(val);
+  //Serial.println(val);
   {
     file.println(val, DEC);
     file.flush();  // Tatsächlich Speichern, wäre ansonsten evtl. nur im Buffer, was zu Fehlern führen kann :(
@@ -210,11 +269,29 @@ void error(int errorCode) {
   byte countdown = 60;  // 60 Sekunden = 1 Minute
   while (countdown > 0) {
     digitalWrite(LED_PIN, HIGH);
-    tone(SPEAKER_PIN, 1000, 500);
+    //tone(SPEAKER_PIN, 1000, 500);
     delay(500);
     digitalWrite(LED_PIN, LOW);
     delay(500);
 
     countdown--;
   }
+}
+
+int charToInt(char c) {
+  if (c == ',') {
+    return 0;
+  }
+  return c - '0';
+}
+
+void gpsStringToFloats(float *dest, const char *str)
+{
+  dest[0] = charToInt(str[16]) * 10 + charToInt(str[17]);
+  dest[1] = charToInt(str[18]) * 10 + charToInt(str[19]) + charToInt(str[21]) * 0.1 + charToInt(str[22]) * 0.01 + charToInt(str[23]) * 0.001;
+
+  dest[2] = charToInt(str[29]) * 100 + charToInt(str[30]) * 10 + charToInt(str[31]);
+  dest[3] = charToInt(str[32]) * 10 + charToInt(str[33]) + charToInt(str[35]) * 0.1 + charToInt(str[36]) * 0.01 + charToInt(str[37]) * 0.001;
+
+  dest[4] = charToInt(str[55]) * 100 + charToInt(str[56]) * 10 + charToInt(str[57]) + charToInt(str[59]) * 0.1;
 }

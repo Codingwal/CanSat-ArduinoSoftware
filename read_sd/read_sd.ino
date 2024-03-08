@@ -1,12 +1,19 @@
 #include <SPI.h>
 #include <SD.h>
-//#include <SdFat.h>
 
 #define SD_CS_PIN 10
+#define SPEAKER_PIN 8
+
+#include "pitches.h"
 
 File file;
-//SdFat32 SD;
-//File32 file;
+int melody[] = {261, 293, 329, 349, 391, 391, 440, 440, 440, 440, 391, 440, 440, 440, 440, 391, 349, 349, 349, 349, 329, 329, 391, 391, 391, 391,  261};
+int durations[] = {250, 250, 250, 250, 500, 500, 250, 250, 250,  250, 500, 250, 250, 250, 250, 500, 250, 250, 250, 250, 500, 500, 250, 250, 250,  250, 500, 500};
+int melodysize = sizeof(melody) / sizeof(melody[0]);
+int duration = 500;
+long time; // ago...
+long lasttone;
+int m = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -23,8 +30,9 @@ void setup() {
     counter++;
   }
   Serial.print("Select file to open");
-  // Serial.print("Select file to open: 0-");
-  // Serial.println(counter - 1);
+
+  time = millis();
+  lasttone = time;
 }
 
 void loop() {
@@ -42,6 +50,13 @@ void loop() {
     if (file) {
       while (file.available()) {
         Serial.write(file.read());
+
+        time = millis();
+        if (time - lasttone > durations[(m - 1) % melodysize]) {
+          tone(SPEAKER_PIN, melody[m % melodysize], durations[m % melodysize]);
+          m++;
+          lasttone = time;
+        }
       }
       file.close();
     } else {

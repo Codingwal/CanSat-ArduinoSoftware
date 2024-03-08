@@ -16,7 +16,8 @@ long lasttone;
 int m = 0;
 
 void setup() {
-  Serial.begin(9600);
+  //Serial.begin(9600);
+  Serial.begin(115200);
 
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println(504);

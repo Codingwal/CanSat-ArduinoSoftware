@@ -93,7 +93,7 @@ async function readPort() {
                 datablock = rawdatablock.split('\r\n');
                 // console.log(datablock[datablock.length - 1]);
                 console.log(datablock[0]);
-                if (datablock[11] == datablockend) {
+                if (datablock[14] == datablockend) {
                     console.log(`Datenblock ${datablock[1]} empfangen!`);
                     processDatablock(datablock);
 
@@ -123,7 +123,7 @@ async function readPort() {
 
 function processDatablock(datablock, useTimer = true) {
     if (datablock[0] == datablockstart &&
-        datablock[11] == datablockend &&
+        datablock[14] == datablockend &&
         dataBlockOK(datablock)) {
         data.messages.push(Number(datablock[1]));
 
@@ -138,11 +138,11 @@ function processDatablock(datablock, useTimer = true) {
         data.rotationY.push(Number(datablock[8]) - calibration.rotationY);
         data.rotationZ.push(Number(datablock[9]) - calibration.rotationZ);
 
-        // data.latitude.push(Number(datablock[10]));
-        // data.longitude.push(Number(datablock[11]));
-        // data.altitude.push(Number(datablock[12]));
+        data.latitude.push(Number(datablock[10]));
+        data.longitude.push(Number(datablock[11]));
+        data.altitude.push(Number(datablock[12]));
 
-        let infos = Number(datablock[10]);
+        let infos = Number(datablock[13]);
         data.fan.push(infos & 1);
         data.ejected.push((infos >> 1) & 1);
         data.landed.push((infos >> 2) & 1);

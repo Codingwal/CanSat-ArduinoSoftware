@@ -1,0 +1,96 @@
+char input[] =  "$GPGGA,124933.00,5041.85721,N,00707.56698,E,1,03,3.13,39.1,M,46.8,M,,*6C";
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  float latitudedeg,latitudemin, longitudedeg,longitudemin, altitude;
+  float gpsdata[5];
+          gpsStringToFloats(gpsdata, input);
+
+          latitudedeg = gpsdata[0];
+          latitudemin = gpsdata[1];
+          longitudedeg = gpsdata[2];
+          longitudemin = gpsdata[3];
+          altitude = gpsdata[4];
+
+          Serial.print("Latitude: ");
+  Serial.println(latitudedeg + latitudemin / 100, DEC);
+  //Serial.print(" ");
+  //Serial.println(latitudemin, DEC);
+  Serial.print("Longitude: ");
+  Serial.println(longitudedeg + longitudemin / 100, DEC);
+  //Serial.print(" ");
+  //Serial.println(longitudemin, DEC);
+  Serial.print("Altitude: ");
+  Serial.println(altitude, DEC);
+}
+
+/*
+5041.85721
+00707.56698
+46.8
+
+50.69762017	7.12611633	85.9
+
+$GPGGA,124933.00,5041.85721,N,00707.56698,E,1,03,3.13,39.1,M,46.8,M,,*6C
+012345678901234567890123456789012345678901234567890123456789012345678901
+000000000011111111112222222222333333333344444444445555555555666666666677
+*/
+
+// GPSLib von Florian
+
+#define LAT 17
+#define LON 30
+#define ALT 61
+
+int charToInt(char c)
+{
+  return c - '0';
+}
+
+void gpsStringToFloats(float * dest, const char *str)
+{
+  byte field = 0;
+  byte counter = 0;
+  byte fieldstart = 0; 
+
+  while (counter < 80 && field < 10) {
+    if (str[counter] == ',') {
+      if (field == 2) {
+        dest[0] = charToInt(str[fieldstart]) * 10 + charToInt(str[fieldstart + 1]);
+        dest[1] = (charToInt(str[fieldstart + 2]) * 10 + charToInt(str[fieldstart + 3]) + charToInt(str[fieldstart + 5]) * 0.1 + charToInt(str[fieldstart + 6]) * 0.01 + charToInt(str[fieldstart + 7]) * 0.001 + charToInt(str[fieldstart + 8]) * 0.0001) / 0.6f;
+      } else if (field == 4) {
+        dest[2] = charToInt(str[fieldstart]) * 100 + charToInt(str[fieldstart + 1]) * 10 + charToInt(str[fieldstart + 2]);
+        dest[3] = (charToInt(str[fieldstart + 3]) * 10 + charToInt(str[fieldstart + 4]) + charToInt(str[fieldstart + 6]) * 0.1 + charToInt(str[fieldstart + 7]) * 0.01 + charToInt(str[fieldstart + 8]) * 0.001 + charToInt(str[fieldstart + 9]) * 0.0001) / 0.6f;
+      } else if (field == 9) {
+        byte pointpos = fieldstart;
+        while (pointpos < counter && str[pointpos] != '.') {
+          pointpos++;
+        }
+        Serial.println("Pointpos:");
+        Serial.println(fieldstart);
+        Serial.println(pointpos);
+        if (pointpos == fieldstart) {
+          dest[4] = 0;
+        } else if (pointpos == fieldstart + 1) {
+          dest[4] = charToInt(str[fieldstart]);
+        } else if (pointpos == fieldstart + 2) {
+          dest[4] = charToInt(str[fieldstart]) * 10 + charToInt(str[fieldstart + 1]);
+        } else if (pointpos == fieldstart + 3) {
+          dest[4] = charToInt(str[fieldstart]) * 100 + charToInt(str[fieldstart + 1]) * 10 + charToInt(str[fieldstart + 2]);
+        } else if (pointpos == fieldstart + 4) {
+          dest[4] = charToInt(str[fieldstart]) * 1000 + charToInt(str[fieldstart + 1]) * 100 + charToInt(str[fieldstart + 2]) * 10 +charToInt(str[fieldstart + 3]);
+        }
+        if (pointpos < counter - 1) {
+          dest[4] += charToInt(str[pointpos + 1]) * 0.1;
+        }
+      }
+
+      field++;
+      fieldstart = counter + 1;
+    }
+    counter++;
+  }
+}

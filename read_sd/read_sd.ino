@@ -54,7 +54,7 @@ void loop() {
 
         time = millis();
         if (time - lasttone > durations[(m - 1) % melodysize]) {
-          tone(SPEAKER_PIN, melody[m % melodysize], durations[m % melodysize]);
+          //tone(SPEAKER_PIN, melody[m % melodysize], durations[m % melodysize]);
           m++;
           lasttone = time;
         }

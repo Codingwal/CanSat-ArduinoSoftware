@@ -92,7 +92,7 @@ async function readPort() {
                 rawdata += lastitem;
                 datablock = rawdatablock.split('\r\n');
                 console.log(datablock);
-                if (datablock[11] == datablockend) {
+                if (datablock[14] == datablockend) {
                     console.log(`Datenblock ${datablock[1]} empfangen!`);
                     processDatablock(datablock);
 
@@ -103,7 +103,7 @@ async function readPort() {
                         refreshScreen(data);
                     }
                 }
-                if (datablock.length > 14) { // Bei zu langen Blöcken neu anfangen
+                if (datablock.length > 16) { // Bei zu langen Blöcken neu anfangen
                     rawdatablock = '';
                     console.log('block too long');
                 }
@@ -123,7 +123,7 @@ async function readPort() {
 
 function processDatablock(datablock, useTimer = true) {
     if (datablock[0] == datablockstart &&
-        datablock[11] == datablockend &&
+        datablock[14] == datablockend &&
         dataBlockOK(datablock)) {
         data.messages.push(Number(datablock[1]));
 
@@ -138,11 +138,11 @@ function processDatablock(datablock, useTimer = true) {
         data.rotationY.push(Number(datablock[8]) - calibration.rotationY);
         data.rotationZ.push(Number(datablock[9]) - calibration.rotationZ);
 
-        // data.latitude.push(Number(datablock[10]));
-        // data.longitude.push(Number(datablock[11]));
-        // data.altitude.push(Number(datablock[12]));
+        data.latitude.push(Number(datablock[10]));
+        data.longitude.push(Number(datablock[11]));
+        data.altitude.push(Number(datablock[12]));
 
-        let infos = Number(datablock[10]);
+        let infos = Number(datablock[13]);
         data.fan.push(infos & 1);
         data.ejected.push((infos >> 1) & 1);
         data.landed.push((infos >> 2) & 1);
@@ -237,6 +237,7 @@ async function refreshScreen(data) {
         '<div class="medium">Temperatur [°C]: <br>' + generateSVGChart(data.temperature, mediumwidth, 200, data.time, mediumgrad) + '</div>' +
         '<div class="medium">Druck [Pa]: <br>' + generateSVGChart(data.pressure, mediumwidth, 200, data.time, mediumgrad) + '</div>' +
         '<div class="big">Höhenmeter (Luftdruck) [m]: <br>' + generateSVGChart(bmp_altitudes, bigwidth, 300, data.time, biggrad) + '</div>' +
+	'<div class="big">Höhenmeter (GPS) [m]: <br>' + generateSVGChart(data.altitude, bigwidth, 300, data.time, biggrad) + '</div>' +
         '<div class="small">Höhe (Luftdruck): <br>' + bmp_height.toFixed(3) + 'm</div>' +
         '<div class="small">Verschiebung (Beschleunigung): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +
         '<div class="small">Verschiebung (GPS): <br>' + `X: ${movementX.toFixed(3)}m, Y: ${movementY.toFixed(3)}m, Z: ${movementZ.toFixed(3)}m` + '</div>' +
@@ -362,26 +363,26 @@ function processSDRawData(rawdata) {
     bigdatablock.forEach(item => {
         datablock.push(item);
         console.log(datablock[12]);
-        if (datablock[12] == datablockend) {
+        if (datablock[14] == datablockend) {
             console.log(`Datenblock ${datablock[1]} empfangen!`);
 
             if (data.time.length > 0) {
-                data.time.push(datablock[11] / 1000); // Zeit aus Datei lesen
+                data.time.push(1234); // Standartwert
             } else {
                 data.time.push(0);
             }
 
-            datablock[11] = datablockend; // Zeit aus Datenblock entfernen, damit wie beim Empfang ausgewertet werden kann
-            delete datablock[12];
+            //datablock[14] = datablockend; // Zeit aus Datenblock entfernen, damit wie beim Empfang ausgewertet werden kann
+            //delete datablock[15];
 
             processDatablock(datablock, false);
             datablock = [];
         }
         if (datablock.length > 16) { // Bei zu langen Blöcken neu anfangen
             datablock = [];
+	    corruptdatablocks++
         } else if (datablock[datablock.length - 1] == datablockstart) { // Neuer Datenblock fängt an
             datablock = [datablockstart];
-            corruptdatablocks++
         }
     });
 

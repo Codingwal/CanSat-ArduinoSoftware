@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSerial-Test</title>
+</head>
+
+<body>
+    <button onclick="start()">Démarrer !</button>
+    <br>
+    <textarea id="console" cols="30" rows="10"></textarea>
+</body>
+
+</html>
+
+<script>
+    async function start() {
+        const port = await navigator.serial.requestPort();
+
+        await port.open({ baudRate: 9600 /* pick your baud rate */ });
+
+        while (port.readable) {
+            const reader = port.readable.getReader();
+            try {
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) {
+                        // |reader| has been canceled.
+                        break;
+                    }
+                    const decoder = new TextDecoder();
+                    document.getElementById('console').value += decoder.decode(value);
+                }
+            } catch (error) {
+                // Handle |error|...
+            } finally {
+                reader.releaseLock();
+            }
+        }
+    }
+</script>

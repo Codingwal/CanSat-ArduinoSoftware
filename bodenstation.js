@@ -91,8 +91,7 @@ async function readPort() {
                 rawdatablock += lastitem;
                 rawdata += lastitem;
                 datablock = rawdatablock.split('\r\n');
-                // console.log(datablock[datablock.length - 1]);
-                console.log(datablock[0]);
+                console.log(datablock);
                 if (datablock[11] == datablockend) {
                     console.log(`Datenblock ${datablock[1]} empfangen!`);
                     processDatablock(datablock);
@@ -104,13 +103,14 @@ async function readPort() {
                         refreshScreen(data);
                     }
                 }
-                if (datablock[datablock.length - 1] == datablockstart) { // Neuer Datenblock fängt an
+                if (datablock.length > 14) { // Bei zu langen Blöcken neu anfangen
+                    rawdatablock = '';
+                    console.log('block too long');
+                }
+		if (datablock[datablock.length - 2] == datablockstart) { // Neuer Datenblock fängt an
                     rawdatablock = datablockstart + '\r\n';
                     console.log('new block');
                     corruptdatablocks++;
-                } else if (datablock.length > 15) { // Bei zu langen Blöcken neu anfangen
-                    rawdatablock = '';
-                    console.log('block too long');
                 }
             }
         } catch (error) {
@@ -361,17 +361,18 @@ function processSDRawData(rawdata) {
 
     bigdatablock.forEach(item => {
         datablock.push(item);
-        if (datablock[15] == datablockend) {
+        console.log(datablock[12]);
+        if (datablock[12] == datablockend) {
             console.log(`Datenblock ${datablock[1]} empfangen!`);
 
             if (data.time.length > 0) {
-                data.time.push(datablock[14] / 1000); // Zeit aus Datei lesen
+                data.time.push(datablock[11] / 1000); // Zeit aus Datei lesen
             } else {
                 data.time.push(0);
             }
 
-            datablock[14] = datablockend; // Zeit aus Datenblock entfernen, damit wie beim Empfang ausgewertet werden kann
-            delete datablock[15];
+            datablock[11] = datablockend; // Zeit aus Datenblock entfernen, damit wie beim Empfang ausgewertet werden kann
+            delete datablock[12];
 
             processDatablock(datablock, false);
             datablock = [];

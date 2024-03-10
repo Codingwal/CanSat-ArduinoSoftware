@@ -34,9 +34,9 @@
 
 #define STARTALTITUDE 30  // Höhe vor dem Start vom Flugplatz
 
-#define TOLERANCE 5 // Toleranz in Metern, um Höhenunterschiede mit dem BMP zu messen
-#define FAN_STARTING_HEIGHT 100
-#define BMP_ALTITUDES_SIZE 4 // Wie viele letzte Temperaturen gespeichert werden sollen
+#define TOLERANCE 20 // Toleranz in Metern, um Höhenunterschiede mit dem BMP zu messen
+#define FAN_STARTING_HEIGHT 250
+#define BMP_ALTITUDES_SIZE 8 // Wie viele letzte Temperaturen gespeichert werden sollen
 
 #define DEBUG false
 #define USE_SDCARD true
@@ -47,7 +47,7 @@
 #define SILENT true
 
 #if USE_BMP
-Adafruit_BMP280 bmp;
+// Adafruit_BMP280 bmp;
 #endif
 #if USE_BNO
 Adafruit_BNO055 bno(55, BNO055_I2C_ADDRESS, &Wire);
@@ -120,21 +120,20 @@ void setup() {
 #endif
 
 #if USE_BMP
-  // Init BMP (Luftdruck & Temperatur)
-  if (!bmp.begin(BMP280_I2C_ADDRESS)) {
-    error(ERROR_BMP);
+  {
+    Adafruit_BMP280 bmp;
+    // Init BMP (Luftdruck & Temperatur)
+    if (!bmp.begin(BMP280_I2C_ADDRESS)) {
+      error(ERROR_BMP);
+    }
+    float pressure = bmp.readPressure();
+    sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
   }
 #endif
 
 #if DEBUG
   Serial.println("d");
 #endif
-  {
-#if USE_BMP
-    float pressure = bmp.readPressure();
-    sealevelhpa = bmp.seaLevelForAltitude(STARTALTITUDE, pressure);
-#endif
-  }
 #if USE_BNO
   // Init BNO (Inertialplatform)
   if (!bno.begin()) {
@@ -204,18 +203,24 @@ void loop() {
 #endif
 
   if (counter > BMP_ALTITUDES_SIZE) { // Falls der Zähler über der Länge an gespeicherten Höhenmetern ist, weiter machen, sonst würde der Satellit schon fliegen, weil die Werte noch 0.00 sind, und dem entsprechend der Satellit schon hochgeflogen sein muss
+    Serial.println(bmp_altitudes[counter % BMP_ALTITUDES_SIZE]);
+    Serial.println(bmp_altitude);
+    Serial.println("---");
     if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - bmp_altitude > TOLERANCE) { // Falls die Höhe fällt
       ejected = true;
-    } else if (bmp_altitude - bmp_altitudes[counter % BMP_ALTITUDES_SIZE] > TOLERANCE) { // Falls die Höhe steigt oder eher gleichbleit, dafür ist die Toleranz da
+    } else if (bmp_altitudes[counter % BMP_ALTITUDES_SIZE] - bmp_altitude <= 0) { // Falls gelandet
       if (ejected == true) { // Falls schon ausgeworfen, muss also gelandet sein
         landed = true;
       }
     }
   }
 
-  if (bmp_altitude < FAN_STARTING_HEIGHT) {
-    fan = true;
+  if (landed) {
+    fan = false;
     digitalWrite(FAN_PIN, LOW);
+  } else if (ejected && bmp_altitude < FAN_STARTING_HEIGHT) {
+    fan = true;
+    digitalWrite(FAN_PIN, HIGH);
   }
 
   bmp_altitudes[counter % BMP_ALTITUDES_SIZE] = bmp_altitude;
@@ -223,13 +228,20 @@ void loop() {
   // Nach dem Auswerfen Piepen (jedes mal Wechsel zwischen Ton und kein Ton, wird anhand der gesendeten Nachrichten bestimmt :)
   if (ejected) {
     if (counter % 2 == 0) {
+#if !SILENT
       tone(SPEAKER_PIN, 1000);
+#endif
     } else {
       noTone(SPEAKER_PIN);
     }
   }
 
   send((fan << 0) + (ejected << 1) + (landed << 2));  // Sendet alle Bools in einem Byte
+#if DEBUG
+  Serial.println(fan + 1000);
+  Serial.println(ejected + 2000);
+  Serial.println(landed + 3000);
+#endif
 
 #if USE_SDCARD
   {
@@ -248,16 +260,26 @@ void loop() {
 }
 
 void BMP() {
+  float pressure = 200000;
+  float temperature = 50;
 #if USE_BMP
-  float pressure = bmp.readPressure();
-  send(bmp.readTemperature());  // Temperatur senden
+  Adafruit_BMP280 bmp;
+  // Init BMP (Luftdruck & Temperatur)
+  if (bmp.begin(BMP280_I2C_ADDRESS)) {
+    pressure = bmp.readPressure();
+    temperature = bmp.readTemperature();
+    bmp_altitude = calcAltitude(pressure);
+  }
 #else
-  float pressure = 10000.00;
-  send(17.8);
+  float altitudes[30] = {30, 30, 35, 55, 155, 300, 500, 700, 710, 700, 680, 690, 670, 610, 550, 500, 440, 390, 310, 250, 200, 140, 100, 60, 30, 30, 35, 37, 36, 33};
+  pressure = 100000;
+  temperature = -10;
+  bmp_altitude = altitudes[min(29, counter)];
 #endif
-
-  bmp_altitude = calcAltitude(pressure);
-
+#if DEBUG
+  Serial.println(bmp_altitude);
+#endif
+  send(temperature);
   send(pressure);
 }
 

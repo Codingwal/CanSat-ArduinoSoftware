@@ -38,8 +38,8 @@
 #define FAN_STARTING_HEIGHT 250
 #define BMP_ALTITUDES_SIZE 8 // Wie viele letzte Temperaturen gespeichert werden sollen
 
-#define DEBUG false
-#define USE_SDCARD true
+#define DEBUG true
+#define USE_SDCARD false
 #define USE_GPS true
 #define USE_BMP true
 #define USE_BNO true
@@ -83,7 +83,7 @@ void setup() {
   Serial.println(100);
 
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
+  digitalWrite(LED_PIN, LOW);
 
   pinMode(FAN_PIN, OUTPUT);
   digitalWrite(FAN_PIN, LOW);
@@ -173,7 +173,7 @@ void setup() {
   tone(SPEAKER_PIN, 600);
   delay(100);
   noTone(SPEAKER_PIN);
-  digitalWrite(LED_PIN, LOW);
+  digitalWrite(LED_PIN, HIGH);
 }
 
 void loop() {
@@ -190,14 +190,6 @@ void loop() {
   BMP();
   BNO();
 
-#if USE_GPS
-  SoftwareSerial ss(GPS_RX_PIN, GPS_TX_PIN);
-  ss.begin(9600);
-  ss.listen();
-  while (ss.available() > 0) {
-    Serial.write(ss.read());
-  }
-#endif
 #if USE_LORA
   rf.listen();
 #endif
